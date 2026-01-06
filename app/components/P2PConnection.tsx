@@ -576,7 +576,15 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
             const id = ID_PREFIX + randomKey;
 
             addLog(`Initializing PeerJS with ID: ${id}`);
-            const peer = new Peer(id, { debug: 1 });
+            const peer = new Peer(id, {
+                debug: 1,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
             peerRef.current = peer;
 
             peer.on('open', (id: string) => {
