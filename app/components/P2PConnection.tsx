@@ -10,12 +10,12 @@ import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
 
 // バージョン情報
-const APP_VERSION = "v2.9.0 (Rich Share UI)";
-
-// 設定値
-const PARALLEL_STREAMS = 5;
-const CHUNK_SIZE = 16 * 1024;
-const BUFFER_THRESHOLD = 256 * 1024;
+const CHUNK_SIZE = 16 * 1024; // 16KB (Safe for WebRTC)
+const PARALLEL_STREAMS = 5; // Use multiple streams
+const MAX_BUFFERED_AMOUNT = 16 * 1024 * 1024; // 16MB limit
+const BUFFER_THRESHOLD = 1024 * 1024; // 1MB threshold
+const PROTOCOL_VERSION = 'kizuna-v1'; // Handshake token
+const APP_VERSION = "v3.0.0 (Secure)";
 const ID_PREFIX = 'kizuna-transfer-v2-';
 
 interface HostedFile {
@@ -389,12 +389,16 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
 
                 if (connectedCount === PARALLEL_STREAMS) {
                     connectionsRef.current = newConns;
-                    addLog("All streams connected. Requesting metadata.");
-                    newConns[0].send({ type: 'get_metadata' });
+                    addLog("Streams connected. Sending handshake...");
+                    // Send Handshake on all streams
+                    newConns.forEach(c => c.send({ type: 'handshake', version: PROTOCOL_VERSION }));
+
+                    // After handshake, request metadata (assuming verification passes)
+                    setTimeout(() => newConns[0].send({ type: 'get_metadata' }), 500);
                 }
             });
 
-            conn.on('data', (data: any) => handleData(data, conn.peer));
+            conn.on('data', (data: any) => handleData(data, conn.peer, conn));
             conn.on('error', (e: any) => {
                 addLog(`Stream ${i} Error: ${e}`);
             });
@@ -417,10 +421,30 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         }, 5000);
     };
 
-    const handleData = async (data: any, remotePeerId: string) => {
+    const handleData = async (data: any, remotePeerId: string, conn?: DataConnection) => {
         if (data.type !== 'chunk') {
             addLog(`Received data: ${data.type} from ${remotePeerId}`);
         }
+
+        // --- HANDSHAKE CHECK ---
+        // For the host (sender), we need to ensure the peer has verified protocol
+        // We attach a 'verified' flag to the connection object.
+        if (hostedFilesRef.current.length > 0 && conn) {
+            // @ts-ignore
+            if (!conn.verified) {
+                if (data.type === 'handshake' && data.version === PROTOCOL_VERSION) {
+                    // @ts-ignore
+                    conn.verified = true;
+                    addLog(`Peer ${remotePeerId} verified.`);
+                    return;
+                } else {
+                    addLog(`Security: Unverified peer ${remotePeerId} sent data. Closing.`);
+                    conn.close();
+                    return;
+                }
+            }
+        }
+        // -----------------------
 
         try {
             if (data.type === 'metadata') {
@@ -579,7 +603,7 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         connectionsRef.current.push(conn);
         const count = connectionsRef.current.length;
         setActiveStreamCount(count);
-        conn.on('data', (data: any) => handleData(data, conn.peer));
+        conn.on('data', (data: any) => handleData(data, conn.peer, conn));
         conn.on('close', () => {
             addLog(`Connection closed: ${conn.peer}`);
             connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
