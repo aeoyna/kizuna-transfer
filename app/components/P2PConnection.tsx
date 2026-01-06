@@ -141,6 +141,13 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         await requestWakeLock();
         addLog(`Starting transfer via ${conns.length} streams.`);
 
+        // Initialize UI immediately
+        setSenderStats(prev => ({ ...prev, isTransferring: true, progress: 0 }));
+        setPeerDiffs(prev => ({
+            ...prev,
+            [targetPeerId]: { name: `Peer ${targetPeerId.slice(0, 4)}...`, progress: 0, speed: 'Starting...' }
+        }));
+
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
         let chunkIndex = Math.floor(startOffset / CHUNK_SIZE);
         const startTime = Date.now();
@@ -248,6 +255,7 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
 
             try {
                 conn.send({ type: 'chunk', index: currentIdx, data: chunkData });
+                if (currentIdx % 50 === 0) addLog(`Sent chunk ${currentIdx}/${totalChunks}`);
             } catch (err) {
                 addLog(`Send Error on stream ${connIndex}: ${err}`);
             }
@@ -397,6 +405,16 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 setActiveStreamCount(connectionsRef.current.length);
             });
         }
+
+        // Connection Timeout
+        setTimeout(() => {
+            if (connectionsRef.current.every(c => !c.open) && status !== 'waiting_for_save') {
+                addLog("Connection timeout. Peer unreachable.");
+                setError("Peer unavailable");
+                setInputKey('');
+                window.location.href = '/';
+            }
+        }, 5000);
     };
 
     const handleData = async (data: any, remotePeerId: string) => {
@@ -617,6 +635,10 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                     // Handle failed attempt
                     failedAttemptsRef.current += 1;
                     setInputKey(''); // Clear input box
+                    setError("Peer not found.");
+
+                    // Redirect to root
+                    window.location.href = '/';
 
                     addLog(`Failed attempt ${failedAttemptsRef.current}/5`);
 
@@ -796,7 +818,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
             {/* POST Box Design */}
             <div
-                className={`relative w-72 h-96 bg-[#FFB000] rounded-t-[5rem] rounded-b-3xl shadow-[0_30px_60px_-12px_rgba(255,176,0,0.4)] flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-[0_40px_70px_-12px_rgba(255,176,0,0.6)] group overflow-hidden border-b-8 border-[#CC8D00] ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
+                className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-[0_30px_60px_-12px_rgba(238,0,0,0.4)] flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-[0_40px_70px_-12px_rgba(238,0,0,0.6)] group overflow-hidden border-b-8 border-[#AA0000] ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
                 onClick={() => document.getElementById('file-input')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
@@ -806,7 +828,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
                 {/* Top: POST Label */}
                 <div className="w-full flex justify-center mt-4">
-                    <span className="text-4xl font-black text-[#1a1a1a] tracking-[0.2em] drop-shadow-sm group-hover:scale-110 transition-transform opacity-80">
+                    <span className="text-4xl font-black text-white tracking-[0.2em] drop-shadow-sm group-hover:scale-110 transition-transform opacity-90">
                         POST
                     </span>
                 </div>
@@ -814,22 +836,22 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                 {/* Middle: Slot & Icon */}
                 <div className="w-full flex-1 flex flex-col items-center justify-center gap-6">
                     {/* The Slot */}
-                    <div className="w-full h-4 bg-[#1a1a1a] rounded-full shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] relative overflow-hidden group-hover:scale-x-105 transition-all">
+                    <div className="w-full h-4 bg-[#AA0000] rounded-full shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] relative overflow-hidden group-hover:scale-x-105 transition-all">
                         <div className={`absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white to-transparent opacity-0 ${isDragging ? 'animate-slide-loop opacity-50' : ''}`} />
                     </div>
 
                     {/* Icon */}
-                    <div className="text-[#1a1a1a]/20 group-hover:text-[#1a1a1a]/60 transition-colors">
+                    <div className="text-white/30 group-hover:text-white/80 transition-colors">
                         <Mail size={48} strokeWidth={1.5} />
                     </div>
                 </div>
 
                 {/* Bottom: Instructions */}
                 <div className="text-center space-y-2">
-                    <p className="text-xs text-[#1a1a1a]/60 font-mono font-bold group-hover:text-[#1a1a1a] transition-colors leading-tight px-2">
-                        Drag and drop files here,<br />or click here to select a folder.
+                    <p className="text-xs text-white/80 font-mono font-bold group-hover:text-white transition-colors leading-tight px-2">
+                        Drag & Drop or<br />Click to Add File
                     </p>
-                    <div className="w-12 h-1 bg-[#CC8D00] rounded-full mx-auto" />
+                    <div className="w-12 h-1 bg-[#AA0000] rounded-full mx-auto" />
                 </div>
             </div>
 
@@ -957,7 +979,7 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
             {/* "MORE" Button (Restored Large POST Design) - Hidden during transfer */}
             {!senderStats?.isTransferring && (
                 <div
-                    className={`relative w-72 h-96 bg-[#FFB000] rounded-t-[5rem] rounded-b-3xl shadow-[0_30px_60px_-12px_rgba(255,176,0,0.4)] flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-[0_40px_70px_-12px_rgba(255,176,0,0.6)] group overflow-hidden border-b-8 border-[#CC8D00] z-20 mb-12 ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
+                    className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-[0_30px_60px_-12px_rgba(238,0,0,0.4)] flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-[0_40px_70px_-12px_rgba(238,0,0,0.6)] group overflow-hidden border-b-8 border-[#AA0000] z-20 mb-12 ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
                     onClick={() => document.getElementById('add-file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
@@ -967,27 +989,27 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
 
                     {/* Top: MORE Label */}
                     <div className="w-full flex justify-center mt-4">
-                        <span className="text-4xl font-black text-[#1a1a1a] tracking-[0.2em] drop-shadow-sm group-hover:scale-110 transition-transform opacity-80">
+                        <span className="text-4xl font-black text-white tracking-[0.2em] drop-shadow-sm group-hover:scale-110 transition-transform opacity-90">
                             MORE
                         </span>
                     </div>
 
                     {/* Middle: Slot */}
                     <div className="w-full flex-1 flex flex-col items-center justify-center gap-6">
-                        <div className="w-full h-4 bg-[#1a1a1a] rounded-full shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] relative overflow-hidden group-hover:scale-x-105 transition-all">
+                        <div className="w-full h-4 bg-[#AA0000] rounded-full shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] relative overflow-hidden group-hover:scale-x-105 transition-all">
                             <div className={`absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white to-transparent opacity-0 ${isDragging ? 'animate-slide-loop opacity-50' : ''}`} />
                         </div>
-                        <div className="text-[#1a1a1a]/20 group-hover:text-[#1a1a1a]/60 transition-colors">
+                        <div className="text-white/30 group-hover:text-white/80 transition-colors">
                             <Upload size={48} strokeWidth={1.5} />
                         </div>
                     </div>
 
                     {/* Bottom: Label */}
                     <div className="text-center space-y-2">
-                        <p className="text-xs text-[#1a1a1a]/60 font-mono font-bold group-hover:text-[#1a1a1a] transition-colors uppercase tracking-widest leading-tight">
+                        <p className="text-xs text-white/80 font-mono font-bold group-hover:text-white transition-colors uppercase tracking-widest leading-tight">
                             Drag & Drop or<br />Click to Add File
                         </p>
-                        <div className="w-12 h-1 bg-[#CC8D00] rounded-full mx-auto" />
+                        <div className="w-12 h-1 bg-[#AA0000] rounded-full mx-auto" />
                     </div>
                 </div>
             )}
