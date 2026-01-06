@@ -10,10 +10,10 @@ import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
 
 // バージョン情報
-const CHUNK_SIZE = 16 * 1024; // 16KB (Safe for WebRTC)
+const CHUNK_SIZE = 64 * 1024; // 64KB Optimized for Speed
 const PARALLEL_STREAMS = 5; // Use multiple streams
 const MAX_BUFFERED_AMOUNT = 16 * 1024 * 1024; // 16MB limit
-const BUFFER_THRESHOLD = 1024 * 1024; // 1MB threshold
+const BUFFER_THRESHOLD = 64 * 1024; // 64KB threshold
 const PROTOCOL_VERSION = 'kizuna-v1'; // Handshake token
 const APP_VERSION = "v3.0.0 (Secure)";
 const ID_PREFIX = 'kizuna-transfer-v2-';
@@ -161,118 +161,105 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
             startOffset: startOffset
         });
 
-        const fileReader = new FileReader();
-        fileReader.onerror = (e) => addLog(`FileReader Error: ${fileReader.error}`);
-
-        const readNextChunk = () => {
-            // Check if transfer is done (or close to done) to reset stats eventually
-            if (chunkIndex >= totalChunks) return;
-            const offset = chunkIndex * CHUNK_SIZE;
-            const slice = file.slice(offset, offset + CHUNK_SIZE);
-            fileReader.readAsArrayBuffer(slice);
-        };
-
-        fileReader.onload = async (e) => {
-            if (!e.target?.result) return;
-            const chunkData = e.target.result as ArrayBuffer;
-            const currentIdx = chunkIndex;
-            chunkIndex++;
-
-            // Calculate Stats
-            const connIndex = currentIdx % conns.length;
-            const conn = conns[connIndex];
-
-            // Per-connection stats tracking
-            // Note: In a true round-robin parallel split to ONE receiver, this 'progress' is just their slice.
-            // If broadcasting to multiple receivers, logic would need to be different (sending all chunks to all).
-            // For now, assuming visualize existing streams.
-
-            // Just for visualization, we roughly estimate per-stream progress based on total * (1/streams) assumption or just their chunk count
-            // Let's track chunks sent per conn
+        // Initialize chunksSent for all conns
+        conns.forEach(c => {
             // @ts-ignore
-            if (!conn.chunksSent) conn.chunksSent = 0;
+            c.chunksSent = 0;
             // @ts-ignore
-            conn.chunksSent++;
+            if (c.dataChannel) c.dataChannel.binaryType = 'arraybuffer';
+        });
 
-            if (currentIdx % 20 === 0 || currentIdx === totalChunks - 1) {
-                const now = Date.now();
-                const elapsed = (now - startTime) / 1000;
+        const sendLoop = async () => {
+            let currentIdx = Math.floor(startOffset / CHUNK_SIZE);
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-                if (elapsed > 0.5) {
-                    const bytesSent = currentIdx * CHUNK_SIZE;
-                    const speedBytes = bytesSent / elapsed;
-                    const remainingBytes = file.size - bytesSent;
-                    const etaSeconds = remainingBytes / speedBytes;
+            while (currentIdx < totalChunks) {
+                const connIndex = currentIdx % conns.length;
+                const conn = conns[connIndex];
 
-                    const speedStr = `${(speedBytes / 1024 / 1024).toFixed(1)} MB/s`;
-                    const etaStr = etaSeconds > 60
-                        ? `${Math.floor(etaSeconds / 60)}m ${Math.floor(etaSeconds % 60)}s`
-                        : `${Math.floor(etaSeconds)}s`;
-
-                    setSenderStats({
-                        speed: speedStr,
-                        eta: etaStr,
-                        isTransferring: true,
-                        progress: (currentIdx / totalChunks) * 100
-                    });
-
-                    // Update Peer Diffs
-                    setPeerDiffs(prev => {
-                        const next = { ...prev };
-                        conns.forEach(c => {
-                            // @ts-ignore
-                            const cSent = c.chunksSent || 0;
-                            // Estimate progress relative to what this stream IS EXPECTED to do (1/N of total) ?? 
-                            // Or just make it look good relative to Total File? 
-                            // Let's show "Contribution to Total" for now, or scaled 0-100 for "Activity"
-                            // If we want "Opponent Progress", and it's 1 file split, they finish together.
-                            // Let's show (ChunksSent / (TotalChunks/Conns)) * 100
-                            const fairShare = totalChunks / conns.length;
-                            const p = Math.min(100, (cSent / fairShare) * 100);
-
-                            next[c.peer] = {
-                                name: `Peer ${c.peer.slice(0, 4)}...`, // Or custom name if we had it
-                                progress: p,
-                                speed: speedStr // Sharing global speed for now as per-stream calc is noisy
-                            };
-                        });
-                        return next;
-                    });
-                }
-            }
-
-            // @ts-ignore
-            if (conn.dataChannel?.bufferedAmount > BUFFER_THRESHOLD) {
-                const waitStart = Date.now();
+                // Backpressure Control
                 // @ts-ignore
-                while (conn.dataChannel?.bufferedAmount > BUFFER_THRESHOLD) {
-                    if (Date.now() - waitStart > 1000) {
-                        break;
-                    }
-                    await new Promise(r => setTimeout(r, 10));
+                if (conn.dataChannel?.bufferedAmount > MAX_BUFFERED_AMOUNT) {
+                    await new Promise(resolve => {
+                        const checkBuffer = () => {
+                            // @ts-ignore
+                            if (conn.dataChannel?.bufferedAmount < BUFFER_THRESHOLD) {
+                                resolve(null);
+                            } else {
+                                setTimeout(checkBuffer, 20);
+                            }
+                        };
+                        checkBuffer();
+                    });
                 }
+
+                const offset = currentIdx * CHUNK_SIZE;
+                const end = Math.min(offset + CHUNK_SIZE, file.size);
+                const chunkData = await file.slice(offset, end).arrayBuffer();
+
+                try {
+                    conn.send({ type: 'chunk', index: currentIdx, data: chunkData });
+
+                    // @ts-ignore
+                    conn.chunksSent = (conn.chunksSent || 0) + 1;
+
+                    if (currentIdx % 50 === 0) addLog(`Sent chunk ${currentIdx}/${totalChunks}`);
+                } catch (err) {
+                    addLog(`Send Error on stream ${connIndex}: ${err}`);
+                }
+
+                // Update Stats (throttled)
+                if (currentIdx % 20 === 0 || currentIdx === totalChunks - 1) {
+                    const now = Date.now();
+                    const elapsed = (now - startTime) / 1000;
+                    if (elapsed > 0.5) {
+                        const bytesSent = currentIdx * CHUNK_SIZE;
+                        const speedBytes = bytesSent / elapsed;
+                        const remainingBytes = file.size - bytesSent;
+                        const etaSeconds = remainingBytes / speedBytes;
+                        const speedStr = `${(speedBytes / 1024 / 1024).toFixed(1)} MB/s`;
+
+                        setSenderStats({
+                            speed: speedStr,
+                            eta: etaSeconds > 60 ? `${Math.floor(etaSeconds / 60)}m ${Math.floor(etaSeconds % 60)}s` : `${Math.floor(etaSeconds)}s`,
+                            isTransferring: true,
+                            progress: (currentIdx / totalChunks) * 100
+                        });
+
+                        // Update Peer Diffs
+                        setPeerDiffs(prev => {
+                            const next = { ...prev };
+                            conns.forEach(c => {
+                                // @ts-ignore
+                                const cSent = c.chunksSent || 0;
+                                const fairShare = totalChunks / conns.length;
+                                next[c.peer] = {
+                                    name: `Peer ${c.peer.slice(0, 4)}...`,
+                                    progress: Math.min(100, (cSent / fairShare) * 100),
+                                    speed: speedStr
+                                };
+                            });
+                            return next;
+                        });
+                    }
+                }
+
+                currentIdx++;
+                // Non-blocking wait to keep UI responsive
+                if (currentIdx % 10 === 0) await new Promise(r => setTimeout(r, 0));
             }
 
-            try {
-                conn.send({ type: 'chunk', index: currentIdx, data: chunkData });
-                if (currentIdx % 50 === 0) addLog(`Sent chunk ${currentIdx}/${totalChunks}`);
-            } catch (err) {
-                addLog(`Send Error on stream ${connIndex}: ${err}`);
-            }
-
-            if (chunkIndex < totalChunks) {
-                readNextChunk();
-            } else {
-                addLog("All chunks sent. Sending file_end.");
-                setSenderStats(prev => ({ ...prev, isTransferring: false, progress: 100 }));
-                setTimeout(() => {
-                    conns[0].send({ type: 'file_end' });
-                    setHostedFiles(prev => prev.map(f => f.file.name === file.name ? { ...f, downloads: f.downloads + 1 } : f));
-                    releaseWakeLock();
-                }, 500);
-            }
+            // Finish
+            addLog("All chunks sent. Sending file_end.");
+            conns[0].send({ type: 'file_end' });
+            setSenderStats(prev => ({ ...prev, isTransferring: false, speed: 'Complete', progress: 100 }));
+            setPeerDiffs(prev => ({ ...prev, [targetPeerId]: { ...prev[targetPeerId], speed: 'Done', progress: 100 } }));
+            setHostedFiles(prev => prev.map(f => f.file.name === file.name ? { ...f, downloads: f.downloads + 1 } : f));
+            releaseWakeLock();
+            alert('Transfer Complete!');
         };
-        readNextChunk();
+
+        sendLoop();
     };
 
     // クリーンアップ処理 (ロック解放)
