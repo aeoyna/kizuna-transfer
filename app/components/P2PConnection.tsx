@@ -424,14 +424,17 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
 
         try {
             if (data.type === 'metadata') {
+                // Security: Sanitize filename
+                const safeFileName = data.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200);
+
                 setIncomingFile({
-                    name: data.fileName,
+                    name: safeFileName,
                     size: data.fileSize,
                     peerId: data.peerId
                 });
                 setStatus('waiting_for_save');
                 incomingDataRef.current = {
-                    fileName: data.fileName,
+                    fileName: safeFileName,
                     fileSize: data.fileSize,
                     totalChunks: 0,
                     receivedChunks: 0,
