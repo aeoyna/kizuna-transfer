@@ -477,6 +477,12 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 const state = incomingDataRef.current;
                 if (!state || state.isFinished) return;
 
+                // Security: Validate chunk size to prevent memory exhaustion
+                if (data.data && data.data.byteLength > CHUNK_SIZE + 1024) {
+                    addLog(`Security Warning: Dropped oversized chunk from ${remotePeerId}`);
+                    return;
+                }
+
                 try {
                     // Check if writable is valid and not closed
                     if (state.writable && !state.writable.locked) {
@@ -625,6 +631,13 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
             });
 
             peer.on('connection', (conn: DataConnection) => {
+                // Security: Limit limit connections
+                if (connectionsRef.current.length >= PARALLEL_STREAMS + 2) {
+                    addLog(`Security: Rejected connection from ${conn.peer} (Max connections reached)`);
+                    conn.close();
+                    return;
+                }
+
                 addLog(`Peer Connected: ${conn.peer}`);
                 setupConnection(conn);
             });
