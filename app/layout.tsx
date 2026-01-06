@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Kizuna Transfer",
   description: "Simple, secure P2P file transfer.",
+  referrer: 'no-referrer',
 };
 
 export default function RootLayout({
