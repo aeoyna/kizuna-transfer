@@ -386,7 +386,7 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 }
             });
 
-            conn.on('data', (data) => handleData(data, conn.peer));
+            conn.on('data', (data: any) => handleData(data, conn.peer));
             conn.on('error', (e: any) => {
                 addLog(`Stream ${i} Error: ${e}`);
             });
