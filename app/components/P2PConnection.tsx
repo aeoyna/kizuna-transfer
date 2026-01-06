@@ -818,7 +818,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
             {/* POST Box Design */}
             <div
-                className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-[0_30px_60px_-12px_rgba(238,0,0,0.4)] flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-[0_40px_70px_-12px_rgba(238,0,0,0.6)] group overflow-hidden border-b-8 border-[#AA0000] ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
+                className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-xl flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-2xl group overflow-hidden border-b-8 border-[#AA0000] ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
                 onClick={() => document.getElementById('file-input')?.click()}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
@@ -906,7 +906,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                             <div
                                 key={i}
                                 className={`w-10 h-14 sm:w-12 sm:h-16 border-2 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-mono transition-all duration-200 z-10 bg-white
-                                    ${inputKey.length === i ? 'border-[#ff5500] shadow-[0_0_15px_rgba(255,85,0,0.3)] scale-105' : 'border-gray-200'}
+                                    ${inputKey.length === i ? 'border-[#ff5500] scale-105' : 'border-gray-200'}
                                     ${inputKey[i] ? 'text-[#1a1a1a] border-gray-400' : 'text-gray-300'}
                                 `}
                             >
@@ -979,7 +979,7 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
             {/* "MORE" Button (Restored Large POST Design) - Hidden during transfer */}
             {!senderStats?.isTransferring && (
                 <div
-                    className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-[0_30px_60px_-12px_rgba(238,0,0,0.4)] flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-[0_40px_70px_-12px_rgba(238,0,0,0.6)] group overflow-hidden border-b-8 border-[#AA0000] z-20 mb-12 ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
+                    className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-xl flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-2xl group overflow-hidden border-b-8 border-[#AA0000] z-20 mb-12 ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
                     onClick={() => document.getElementById('add-file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
