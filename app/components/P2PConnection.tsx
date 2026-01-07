@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     Copy, CheckCircle2, FileIcon, Download, Upload, XCircle, Loader2, HardDrive, Zap,
     CalendarClock, KeyRound, ArrowRight, Terminal, Share2, Mail, Twitter, ShieldAlert,
-    QrCode, Users, Play
+    QrCode, Users, Play, Plus
 } from 'lucide-react';
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -15,7 +15,7 @@ const PARALLEL_STREAMS = 5; // Use multiple streams
 const MAX_BUFFERED_AMOUNT = 16 * 1024 * 1024; // 16MB limit
 const BUFFER_THRESHOLD = 64 * 1024; // 64KB threshold
 const PROTOCOL_VERSION = 'kizuna-v1'; // Handshake token
-const APP_VERSION = "v3.0.0 (Secure)";
+const APP_VERSION = "v3.1.0 (Multi-File)";
 const ID_PREFIX = 'kizuna-transfer-v2-';
 
 const ATTACK_THRESHOLD = 5; // Max failures allowed
@@ -31,6 +31,13 @@ interface HostedFile {
     transferKey: string;
 }
 
+interface IncomingFileMeta {
+    name: string;
+    size: number;
+    peerId: string;
+    id: string; // Unique ID from sender
+}
+
 interface TransferState {
     fileName: string;
     fileSize: number;
@@ -42,6 +49,7 @@ interface TransferState {
     chunks?: ArrayBuffer[];
     scheduledTime?: number;
     isFinished?: boolean;
+    fileId?: string;
 }
 
 // --- IndexedDB Helpers ---
@@ -99,7 +107,11 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
     const [myId, setMyId] = useState<string>('');
     const [status, setStatus] = useState<'initializing' | 'input_key' | 'ready' | 'connecting' | 'connected' | 'waiting_for_save' | 'scheduled'>('initializing');
     const [hostedFiles, setHostedFiles] = useState<HostedFile[]>([]);
-    const [incomingFile, setIncomingFile] = useState<{ name: string; size: number; peerId: string } | null>(null);
+
+    // Multi-file support: Store array of incoming files
+    const [incomingFiles, setIncomingFiles] = useState<IncomingFileMeta[]>([]);
+    const [activeDownloadFile, setActiveDownloadFile] = useState<IncomingFileMeta | null>(null);
+
     const [progress, setProgress] = useState<number>(0);
     const [transferSpeed, setTransferSpeed] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
@@ -202,14 +214,12 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
 
     // --- Core Logic ---
 
-    // --- Core Logic ---
-
     // 1. Send Logic (Optimized with Web Worker)
     const sendFileParallel = async (file: File, conns: DataConnection[], startOffset: number = 0, targetPeerId: string) => {
         if (conns.length === 0) return;
 
         await requestWakeLock();
-        addLog(`Starting transfer via ${conns.length} streams (Worker Enabled).`);
+        addLog(`Starting transfer: ${file.name}`);
 
         // Initialize UI
         setSenderStats(prev => ({ ...prev, isTransferring: true, progress: 0 }));
@@ -279,8 +289,6 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         // Handle Worker Messages (Producer-Consumer)
         worker.onmessage = async (e: MessageEvent) => {
             if (e.data.type === 'complete') {
-                // Wait for all chunks to actually be sent? 
-                // The worker is faster than network, so we might still be sending.
                 return;
             }
 
@@ -343,7 +351,6 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                     conns[0].send({ type: 'file_end' });
                     setSenderStats(prev => ({ ...prev, isTransferring: false, speed: 'Complete', progress: 100 }));
                     releaseWakeLock();
-                    alert('Transfer Complete!');
                     // Terminate worker to free memory
                     worker.terminate();
                     fileReaderWorkerRef.current = null;
@@ -356,13 +363,13 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
     };
 
     // 2. Download/Receive Logic
-    const startDownload = async (fileHandle?: FileSystemFileHandle) => {
-        if (!incomingFile) return;
+    const startDownload = async (fileMeta: IncomingFileMeta, fileHandle?: FileSystemFileHandle) => {
+        if (!fileMeta) return;
 
         if (!fileHandle) {
             try {
                 // @ts-ignore
-                fileHandle = await window.showSaveFilePicker({ suggestedName: incomingFile.name });
+                fileHandle = await window.showSaveFilePicker({ suggestedName: fileMeta.name });
             } catch (err) {
                 addLog('User cancelled save.');
                 return;
@@ -375,9 +382,9 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         try {
             await saveTransferState({
                 id: 'current_transfer',
-                name: incomingFile.name,
-                size: incomingFile.size,
-                peerId: incomingFile.peerId,
+                name: fileMeta.name,
+                size: fileMeta.size,
+                peerId: fileMeta.peerId,
                 handle: fileHandle
             });
             addLog("Transfer state saved for auto-resume.");
@@ -398,38 +405,28 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         }
 
         incomingDataRef.current = {
-            fileName: incomingFile.name,
-            fileSize: incomingFile.size,
-            totalChunks: Math.ceil(incomingFile.size / CHUNK_SIZE), // Will be updated by file_start but good to have
+            fileName: fileMeta.name,
+            fileSize: fileMeta.size,
+            totalChunks: Math.ceil(fileMeta.size / CHUNK_SIZE),
             receivedChunks: startChunkIndex,
             startTime: Date.now(),
             fileHandle: fileHandle!,
             writable: writable,
-            chunks: []
+            chunks: [],
+            fileId: fileMeta.id
         };
+        setActiveDownloadFile(fileMeta);
         setStatus('connected');
-        addLog("Saving file... Requesting data.");
+        addLog(`Requesting file: ${fileMeta.name} (ID: ${fileMeta.id})`);
 
-        const activeConn = connectionsRef.current.find(c => c.open && c.peer === incomingFile.peerId);
+        const activeConn = connectionsRef.current.find(c => c.open && c.peer === fileMeta.peerId);
         if (activeConn) {
-            // Request specific offset
-            // We need to tell sender where to start
-            activeConn.send({ type: 'request_file', offsetBytes: currentSize });
+            // Request specific file by ID
+            activeConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize });
         } else {
-            // Initiate connection if needed (Resume flow)
-            if (!activeConn && resumeHandle) {
-                // We need to connect first!
-                // The 'connectToPeer' logic handles this, but here we assume we are already connected via 'onOpen' logic?
-                // If we came from Resume button, we called connectToPeer manually.
-                // Wait for connection?
-                // Actually, connectToPeer should trigger 'request_file' after handshake.
-                // But here we might want to be explicit.
-                // If no connection, we can't send.
-                addLog("Waiting for connection to send request...");
-            } else {
-                const anyConn = connectionsRef.current[0];
-                if (anyConn) anyConn.send({ type: 'request_file', offsetBytes: currentSize });
-            }
+            // Queue via first available (fallback)
+            const anyConn = connectionsRef.current[0];
+            if (anyConn) anyConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize });
         }
     };
 
@@ -439,7 +436,7 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
             addLog(`Received data: ${data.type} from ${remotePeerId}`);
         }
 
-        // Security: Handshake Check (Sender side)
+        // Security: Handshake Check
         if (hostedFilesRef.current.length > 0 && conn) {
             // @ts-ignore
             if (!conn.verified) {
@@ -458,37 +455,33 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         }
 
         try {
-            if (data.type === 'metadata') {
-                // Security: Sanitize Filename
-                const safeFileName = data.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200);
+            if (data.type === 'metadata_list') {
+                // Multi-file support: Receive list of files
+                const files: IncomingFileMeta[] = data.files.map((f: any) => ({
+                    name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
+                    size: f.fileSize,
+                    peerId: remotePeerId,
+                    id: f.id
+                }));
 
-                setIncomingFile({
-                    name: safeFileName,
-                    size: data.fileSize,
-                    peerId: data.peerId
-                });
+                setIncomingFiles(files);
                 setStatus('waiting_for_save');
-                incomingDataRef.current = {
-                    fileName: safeFileName,
-                    fileSize: data.fileSize,
-                    totalChunks: 0,
-                    receivedChunks: 0,
-                    startTime: 0,
-                    isFinished: false
-                };
             }
             else if (data.type === 'get_metadata') {
-                const file = hostedFilesRef.current[0]?.file;
-                if (file) {
-                    const activeConn = connectionsRef.current.find(c => c.open && c.peer === remotePeerId);
-                    if (activeConn) {
-                        activeConn.send({
-                            type: 'metadata',
-                            fileName: file.name,
-                            fileSize: file.size,
-                            peerId: myId
-                        });
-                    }
+                // Send ALL hosted files
+                const filesMeta = hostedFilesRef.current.map(f => ({
+                    id: f.id,
+                    fileName: f.file.name,
+                    fileSize: f.file.size
+                }));
+
+                const activeConn = connectionsRef.current.find(c => c.open && c.peer === remotePeerId);
+                if (activeConn) {
+                    activeConn.send({
+                        type: 'metadata_list',
+                        files: filesMeta,
+                        peerId: myId
+                    });
                 }
             }
             else if (data.type === 'file_start') {
@@ -536,25 +529,20 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                     await incomingDataRef.current.writable.close();
                 }
                 incomingDataRef.current = { ...incomingDataRef.current!, isFinished: true };
-                setStatus('ready');
+                setStatus('waiting_for_save'); // Go back to list
                 setProgress(100);
+                setActiveDownloadFile(null); // Clear active download
                 setTransferSpeed('Finished');
-                setIncomingFile(null);
                 setResumeHandle(null); // Clear resume handle
                 await clearTransferState(); // Clear DB
                 releaseWakeLock();
                 alert("Download Complete!");
-                window.location.reload();
             }
             else if (data.type === 'request_file') {
-                const fileObj = hostedFilesRef.current[0];
+                const requestedId = data.fileId;
+                const fileObj = hostedFilesRef.current.find(f => f.id === requestedId) || hostedFilesRef.current[0];
+
                 if (fileObj) {
-                    if (fileObj.availableFrom && Date.now() < fileObj.availableFrom) {
-                        const waitMs = fileObj.availableFrom - Date.now();
-                        const waitSec = Math.ceil(waitMs / 1000);
-                        conn?.send({ type: 'schedule_wait', seconds: waitSec });
-                        return;
-                    }
                     const targetConns = connectionsRef.current.filter(c => c.open && c.peer === remotePeerId);
                     // Support Offset for Resume
                     const offset = data.offsetBytes || 0;
@@ -562,33 +550,11 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                     sendFileParallel(fileObj.file, targetConns, offset, remotePeerId);
                 }
             }
-            else if (data.type === 'schedule_wait') {
-                addLog(`File is scheduled. Available in ${data.seconds}s`);
-                setStatus('scheduled');
-                setCountdown(data.seconds.toString());
-                const interval = setInterval(() => {
-                    setCountdown(prev => {
-                        const n = parseInt(prev);
-                        if (n <= 1) {
-                            clearInterval(interval);
-                            conn?.send({ type: 'request_file' });
-                            return '';
-                        }
-                        return (n - 1).toString();
-                    });
-                }, 1000);
-                timerRef.current = interval;
-            }
         } catch (err) {
             console.error(err);
             addLog(`Error handling data: ${err}`);
         }
-    }, [addLog, recordFailure, myId, sendFileParallel]); // Added sendFileParallel dependency via closure potentially, but it's defined inside.
-    // Wait, sendFileParallel is defined inside the component, so we can use it.
-    // But handleData is defined BEFORE sendFileParallel. This is a problem with `const` order.
-    // Actually handleData is defined AFTER sendFileParallel in my write block above? No, I put sendFileParallel first.
-    // Logic order: addLog -> sendFileParallel -> startDownload -> handleData. Ideal.
-
+    }, [addLog, recordFailure, myId, sendFileParallel]);
 
     // 4. Connection Setup
     const setupConnection = useCallback((conn: DataConnection) => {
@@ -713,10 +679,6 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                     setInputKey('');
                     setError("Peer not found.");
                     window.location.href = '/';
-                    if (failedAttemptsRef.current >= 3) {
-                        setIsCaptchaActive(true);
-                        setCaptcha(generateCaptcha());
-                    }
                 } else if (err.type === 'network') {
                     setError("Network error. Retrying...");
                 }
@@ -742,14 +704,15 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 const savedState = await loadTransferState();
                 if (savedState) {
                     addLog(`Found interrupted transfer: ${savedState.name}`);
-                    setIncomingFile({
+                    // Multi-file partial support in resume: Just show the one we were downloading
+                    setIncomingFiles([{
                         name: savedState.name,
                         size: savedState.size,
-                        peerId: savedState.peerId
-                    });
+                        peerId: savedState.peerId,
+                        id: 'resume' // We might lose ID but okay for single resume
+                    }]);
                     setResumeHandle(savedState.handle);
                     setStatus('waiting_for_save');
-                    // Extract key from peerId (prefix remove)
                     const key = savedState.peerId.replace(ID_PREFIX, '');
                     setInputKey(key);
                 }
@@ -765,23 +728,31 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
 
     // File Handle
     const handleFileSelect = async (file: File) => {
-        const newKey = Math.floor(100000 + Math.random() * 900000).toString();
         const baseUrl = window.location.origin;
-        const shareUrl = `${baseUrl}/${newKey}`;
+        // If first file, generate key. If additional, keep key.
+        let currentKey = hostedFiles.length > 0 ? hostedFiles[0].transferKey : null;
 
-        addLog(`File added: ${file.name} (${file.size}). New Key: ${newKey}`);
-        await initPeer(0, newKey);
+        if (!currentKey) {
+            currentKey = Math.floor(100000 + Math.random() * 900000).toString();
+            await initPeer(0, currentKey);
+        }
+
+        const shareUrl = `${baseUrl}/${currentKey}`;
+        const newFileId = Math.random().toString(36).substring(7);
+
+        addLog(`File added: ${file.name} (${file.size}). Key: ${currentKey}`);
 
         const newFile: HostedFile = {
-            id: newKey,
+            id: newFileId,
             file,
             downloadUrl: shareUrl,
             downloads: 0,
             availableFrom: 0,
-            transferKey: newKey
+            transferKey: currentKey
         };
 
-        setHostedFiles([newFile]);
+        // Append to list instead of replacing
+        setHostedFiles(prev => [...prev, newFile]);
         setStatus('ready');
     };
 
@@ -793,66 +764,16 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
     return (
         <div className="min-h-screen flex flex-col">
             <div className="flex-1">
-                {incomingFile ? (
+                {incomingFiles.length > 0 ? (
                     <ReceiverView
                         status={status}
-                        file={incomingFile}
+                        files={incomingFiles}
+                        activeFile={activeDownloadFile}
                         progress={progress}
                         speed={transferSpeed}
                         activeStreams={activeStreamCount}
                         error={error}
-                        onStartDownload={async () => {
-                            if (resumeHandle) {
-                                // Request permission for resume
-                                try {
-                                    // @ts-ignore
-                                    const mode = await resumeHandle.queryPermission({ mode: 'readwrite' });
-                                    if (mode !== 'granted') {
-                                        // @ts-ignore
-                                        await resumeHandle.requestPermission({ mode: 'readwrite' });
-                                    }
-                                    // Connect if not connected yet
-                                    if (status !== 'connected' && connectionsRef.current.length === 0) {
-                                        // We need to connect first
-                                        addLog("Reconnecting to peer for resume...");
-                                        connectToPeer(inputKey);
-                                        // The 'startDownload' should be called AFTER connection?
-                                        // Or we call startDownload now and it waits?
-                                        // Better: connect first, then startDownload triggers request_file
-                                        // But startDownload needs 'fileHandle'.
-                                        // Let's pass handle to startDownload immediately, 
-                                        // and inside startDownload, it sends request IF connected.
-                                        // If not connected, we rely on 'onOpen' or 'onConnection' hooks? 
-                                        // Actually, our connectToPeer->onOpen->handshake->...
-                                        // We should modify 'connectToPeer' to trigger download if 'incomingDataRef' is waiting?
-                                        // No, simpler: 
-                                        // Just call startDownload. If connection exists, it requests.
-                                        // If not, we trigger connectToPeer NOW, and pass a callback?
-                                        // Or just let user click "Resume" which connects, then once connected user clicks "Start"?
-                                        // User Experience: Click "Resume" -> Connects -> Auto starts?
-                                    }
-
-                                    // If we are not connected, we must connect first.
-                                    if (connectionsRef.current.length === 0) {
-                                        connectToPeer(inputKey);
-                                        // We need to wait for connection to established before sending request
-                                        // Quick hack: set a flag or retry
-                                        const checkConn = setInterval(() => {
-                                            if (connectionsRef.current.some(c => c.open)) {
-                                                clearInterval(checkConn);
-                                                startDownload(resumeHandle);
-                                            }
-                                        }, 500);
-                                    } else {
-                                        startDownload(resumeHandle);
-                                    }
-                                } catch (e) {
-                                    addLog("Resume permission denied or failed.");
-                                }
-                            } else {
-                                startDownload();
-                            }
-                        }}
+                        onStartDownload={(file) => startDownload(file, resumeHandle)}
                         countdown={countdown}
                         inputKey={inputKey}
                         isResume={!!resumeHandle}
@@ -869,13 +790,6 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                             const conn = connectionsRef.current.find(c => c.peer === peerId);
                             if (conn) {
                                 conn.close();
-                                connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
-                                setActiveStreamCount(connectionsRef.current.length);
-                                setPeerDiffs(prev => {
-                                    const next = { ...prev };
-                                    delete next[peerId];
-                                    return next;
-                                });
                             }
                         }}
                     />
@@ -1118,7 +1032,7 @@ interface SenderViewProps {
 }
 
 function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer }: SenderViewProps) {
-    const file = hostedFiles[0];
+    const mainFile = hostedFiles[0];
     const [isSharing, setIsSharing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -1137,7 +1051,7 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         <Users className="text-white" size={20} />
                     </div>
                     <div>
-                        <div className="text-sm font-bold text-[#d40000]">ACTIVE SHARE</div>
+                        <div className="text-sm font-bold text-[#d40000]">ACTIVE SHARE (Post Office)</div>
                         <div className="text-xs text-gray-400">Wait for peers</div>
                     </div>
                 </div>
@@ -1147,92 +1061,34 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                 </div>
             </div>
 
-            <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8 items-start">
-                <div className="envelope-card p-8 rounded-sm rotate-1 max-w-sm mx-auto transform transition-transform hover:rotate-0 paper-texture">
-                    <div className="absolute top-4 right-4 post-stamp border-red-500 text-red-500">
-                        PRIORITY
-                    </div>
-                    <div className="text-center mb-8 mt-6">
-                        <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Postal Code</div>
-                        <h1 className="text-6xl font-serif font-bold tracking-widest text-[#8b0000] mb-2 font-mono">{file.transferKey}</h1>
-                        <div className="w-full h-px bg-gray-200 my-4 relative">
-                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-red-500 to-blue-500 opacity-20" />
-                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-red-500 to-blue-500 opacity-20" />
-                        </div>
-                    </div>
-                    <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative">
-                        <div className="absolute -top-3 -left-3 text-gray-300 transform -rotate-45">
-                            <Mail size={24} />
-                        </div>
-                        <QRCodeSVG value={file.downloadUrl} className="w-full h-full opacity-90" />
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => { navigator.clipboard.writeText(file.downloadUrl); alert("Link Copied!"); }}
-                            className="flex-1 bg-red-50 border-2 border-red-100 text-red-900 py-3 rounded-md font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-serif"
-                        >
-                            <Copy size={18} /> Copy Address
-                        </button>
-                        <button onClick={() => setIsSharing(!isSharing)} className="bg-[#8b0000] text-white p-3 rounded-md hover:bg-[#660000] transition-colors">
-                            <Share2 size={18} />
-                        </button>
-                    </div>
-                </div>
-
+            <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8 items-start">
                 <div className="space-y-6">
-                    <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100">
-                        <div className="flex items-start gap-4 mb-6 border-b border-dashed border-gray-200 pb-4">
-                            <div className="w-16 h-16 bg-red-50 rounded-lg flex items-center justify-center text-[#8b0000] border border-red-100 shadow-sm rotate-3">
-                                <FileIcon size={32} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg text-gray-900 truncate max-w-[200px] font-serif">{file.file.name}</h3>
-                                <p className="text-sm text-gray-500 font-mono">{(file.file.size / 1024 / 1024).toFixed(1)} MB</p>
-                            </div>
+                    {/* Postal Code Card */}
+                    <div className="envelope-card p-8 rounded-sm  max-w-sm mx-auto transform paper-texture relative">
+                        <div className="absolute top-4 right-4 post-stamp border-red-500 text-red-500">
+                            PRIORITY
                         </div>
-
-                        {senderStats.isTransferring ? (
-                            <div className="space-y-4">
-                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#d40000] transition-all duration-300 ease-out" style={{ width: `${senderStats.progress}%` }} />
-                                </div>
-                                <div className="flex justify-between text-sm font-bold">
-                                    <span className="text-[#d40000]">{senderStats.speed}</span>
-                                    <span className="text-gray-400">ETA: {senderStats.eta}</span>
-                                </div>
+                        <div className="text-center mb-8 mt-6">
+                            <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Postal Code</div>
+                            <h1 className="text-6xl font-serif font-bold tracking-widest text-[#8b0000] mb-2 font-mono">{mainFile.transferKey}</h1>
+                        </div>
+                        <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative">
+                            <div className="absolute -top-3 -left-3 text-gray-300 transform -rotate-45">
+                                <Mail size={24} />
                             </div>
-                        ) : (
-                            <div className="p-4 bg-green-50 text-green-700 rounded-xl text-sm font-bold flex items-center gap-2">
-                                <CheckCircle2 size={16} /> Ready for transfer
-                            </div>
-                        )}
+                            <QRCodeSVG value={mainFile.downloadUrl} className="w-full h-full opacity-90" />
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => { navigator.clipboard.writeText(mainFile.downloadUrl); alert("Link Copied!"); }}
+                                className="flex-1 bg-red-50 border-2 border-red-100 text-red-900 py-3 rounded-md font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-serif"
+                            >
+                                <Copy size={18} /> Copy Address
+                            </button>
+                        </div>
                     </div>
 
-                    {Object.keys(peerDiffs).length > 0 && (
-                        <div className="space-y-3">
-                            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider pl-2">Connected Peers</h4>
-                            {Object.entries(peerDiffs).map(([pid, data]) => (
-                                <div key={pid} className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between border border-gray-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
-                                            <Download size={16} className="text-gray-400" />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-sm">{data.name}</div>
-                                            <div className="text-xs text-gray-400">{data.speed}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-xs font-bold text-[#d40000]">{Math.round(data.progress)}%</div>
-                                        <button onClick={() => onStopPeer(pid)} className="text-gray-300 hover:text-red-500 transition-colors">
-                                            <XCircle size={20} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
+                    {/* Send More Postbox */}
                     <div
                         className={`relative w-full h-32 bg-[#CC0000] rounded-xl shadow-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-xl border-4 border-[#990000] overflow-hidden ${isDragging ? 'ring-4 ring-yellow-400' : ''} postbox-slot`}
                         onClick={() => document.getElementById('add-file-input')?.click()}
@@ -1240,12 +1096,52 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={handleDrop}
                     >
-                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-2 bg-black/20 rounded-full" />
-                        <div className="flex items-center gap-2 text-white/90">
-                            <Mail size={24} /> <span className="font-bold text-xl font-serif tracking-widest">SEND MORE</span>
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-48 h-3 bg-black/40 rounded-full shadow-inner" />
+                        <div className="flex items-center gap-2 text-white/90 mt-4">
+                            <Mail size={24} /> <span className="font-bold text-xl font-serif tracking-widest text-engraved">POST MORE</span>
                         </div>
+                        <div className="text-white/60 text-xs uppercase tracking-wider mt-1">Drop additional letters here</div>
                         <input id="add-file-input" type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onAddFile(e.target.files[0])} />
                     </div>
+                </div>
+
+                <div className="space-y-6">
+                    <h3 className="font-serif text-2xl font-bold text-[#8b0000] pl-2 mb-4 border-b-2 border-red-100 pb-2">Letters to Send ({hostedFiles.length})</h3>
+
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                        {hostedFiles.map((file, idx) => (
+                            <div key={file.id} className="bg-white p-4 rounded-sm shadow-sm border border-gray-200 paper-texture relative transform hover:-translate-y-1 transition-transform cursor-default">
+                                <div className="absolute top-2 right-2 opacity-20">
+                                    <Mail size={40} className="text-[#8b0000]" />
+                                </div>
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#8b0000] font-bold font-mono border border-red-100">
+                                        {idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-gray-900 truncate font-serif">{file.file.name}</h4>
+                                        <p className="text-xs text-gray-500 font-mono">{(file.file.size / 1024 / 1024).toFixed(1)} MB</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Status Display (for active file) */}
+                    {senderStats.isTransferring && (
+                        <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-100 sticky bottom-0">
+                            <div className="space-y-4">
+                                <div className="flex justify-between text-sm font-bold">
+                                    <span className="text-[#d40000]">Sending...</span>
+                                    <span className="text-gray-400">ETA: {senderStats.eta}</span>
+                                </div>
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#d40000] transition-all duration-300 ease-out" style={{ width: `${senderStats.progress}%` }} />
+                                </div>
+                                <div className="text-right text-[#d40000] font-bold text-sm">{senderStats.speed}</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1254,85 +1150,78 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
 
 interface ReceiverViewProps {
     status: string;
-    file: { name: string; size: number; peerId: string };
+    files: IncomingFileMeta[];
+    activeFile: IncomingFileMeta | null;
     progress: number;
     speed: string;
     activeStreams: number;
     error: string | null;
-    onStartDownload: () => void;
+    onStartDownload: (file: IncomingFileMeta) => void;
     countdown: string;
     inputKey: string;
     isResume?: boolean;
 }
 
-function ReceiverView({ status, file, progress, speed, activeStreams, error, onStartDownload, countdown, inputKey, isResume }: ReceiverViewProps) {
+function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, countdown, inputKey, isResume }: ReceiverViewProps) {
     return (
         <div className="h-screen flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-gradient-to-br from-red-100 to-transparent rounded-full blur-3xl opacity-40" />
             </div>
 
-            <div className="relative z-10 w-full max-w-md">
-                <div className="flex justify-center mb-8">
-                    <div className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 border ${status === 'connected' || status === 'waiting_for_save' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
-                        <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-[#d40000] animate-pulse' : 'bg-current'}`} />
-                        {status.toUpperCase().replace('_', ' ')}
+            <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
+                <div className="mb-8 text-center">
+                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md border-4 border-white">
+                        <Mail size={32} className="text-[#8b0000]" />
                     </div>
+                    <h2 className="text-3xl font-black text-[#8b0000] mb-2 font-serif tracking-tight">YOU HAVE MAIL</h2>
+                    <p className="text-gray-500 font-mono">From Post ID: {inputKey}</p>
                 </div>
 
-                <div className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100 text-center">
-                    <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md border-4 border-white">
-                        <Mail size={40} className="text-[#8b0000]" />
+                <div className="w-full grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[60vh] overflow-y-auto p-4">
+                    {files.map((file) => (
+                        <div key={file.id} className="envelope-card p-6 paper-texture flex flex-col justify-between h-48 transform hover:scale-105 transition-transform duration-200">
+                            <div>
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="w-8 h-10 border-2 border-red-200 bg-red-50 flex items-center justify-center">
+                                        <span className="text-[10px] text-red-300 font-bold transform -rotate-90">STAMP</span>
+                                    </div>
+                                    {activeFile?.id === file.id && status === 'connected' && (
+                                        <div className="text-xs font-bold text-[#d40000] animate-pulse">Downloading...</div>
+                                    )}
+                                    {status === 'waiting_for_save' && activeFile?.id === file.id && (
+                                        <div className="text-red-600 font-bold border-2 border-red-600 px-2 py-0.5 text-xs rounded-sm rotate-12 opacity-80">DONE</div>
+                                    )}
+                                </div>
+                                <h3 className="font-bold text-gray-900 truncate font-serif text-lg leading-tight mb-1">{file.name}</h3>
+                                <p className="text-xs text-gray-500 font-mono">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                            </div>
+
+                            <button
+                                onClick={() => onStartDownload(file)}
+                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
+                                className={`w-full mt-4 py-2 rounded-md font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 border-t-2 border-gray-100
+                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'bg-[#d40000] text-white hover:bg-[#b30000]'}
+                                `}
+                            >
+                                {activeFile?.id === file.id ? (status === 'connected' ? 'In Transit...' : 'Opening...') : 'Open Letter'}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+
+                {status === 'connected' && activeFile && (
+                    <div className="mt-8 w-full max-w-md bg-white rounded-xl p-6 shadow-xl border border-gray-100">
+                        <h4 className="font-bold text-gray-900 mb-2 truncate">Downloading: {activeFile.name}</h4>
+                        <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-2">
+                            <div className="h-full bg-[#d40000] transition-all duration-200 ease-linear shadow-[0_0_10px_rgba(212,0,0,0.5)]" style={{ width: `${progress}%` }} />
+                        </div>
+                        <div className="flex justify-between items-end">
+                            <div className="text-[#d40000] font-bold">{speed}</div>
+                            <div className="text-xs text-gray-400">{activeStreams} streams</div>
+                        </div>
                     </div>
-
-                    <h2 className="text-2xl font-black text-gray-900 mb-2 truncate px-4">{file.name}</h2>
-                    <p className="text-gray-500 font-medium mb-8">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
-
-                    {status === 'waiting_for_save' ? (
-                        <button
-                            onClick={() => onStartDownload()}
-                            className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 animate-bounce
-                                ${isResume ? 'bg-red-800 hover:bg-red-900 shadow-red-200' : 'bg-[#d40000] hover:bg-[#b30000] shadow-red-200'}
-                            `}
-                        >
-                            {isResume ? <><Play size={24} /> Resume Delivery</> : <><Download size={24} /> Receive Mail</>}
-                        </button>
-                    ) : status === 'connected' ? (
-                        <div className="space-y-4">
-                            <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-[#d40000] transition-all duration-200 ease-linear shadow-[0_0_10px_rgba(212,0,0,0.5)]" style={{ width: `${progress}%` }} />
-                            </div>
-                            <div className="flex justify-between items-end">
-                                <div className="text-left">
-                                    <div className="text-3xl font-black text-gray-900">{Math.floor(progress)}%</div>
-                                    <div className="text-xs text-gray-400">Downloading...</div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-[#d40000] font-bold">{speed}</div>
-                                    <div className="text-xs text-gray-400">{activeStreams} streams</div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : status === 'ready' ? (
-                        <div className="py-8 animate-pulse text-[#d40000] font-bold text-xl post-stamp rotate-12 mx-auto w-max border-4">
-                            DELIVERED
-                        </div>
-                    ) : status === 'scheduled' ? (
-                        <div className="py-8">
-                            <div className="text-5xl font-black text-gray-200 mb-2">{countdown}</div>
-                            <p className="text-gray-400 text-sm">Transfer starts automatically</p>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center gap-3 py-4 text-gray-400">
-                            <Loader2 className="animate-spin" size={24} />
-                            <span className="text-sm">Connecting to peer...</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="mt-8 text-center">
-                    <p className="text-gray-300 text-xs font-mono uppercase tracking-widest">Connect ID: {inputKey}</p>
-                </div>
+                )}
             </div>
 
             {error && (
