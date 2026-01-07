@@ -981,7 +981,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                 {[0, 1, 2].map((i) => (
                                     <div
                                         key={i}
-                                        className={`w-10 h-14 border-2 flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
+                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
                                     >
                                         {inputKey[i] || ''}
                                     </div>
@@ -992,7 +992,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                 {[3, 4, 5].map((i) => (
                                     <div
                                         key={i}
-                                        className={`w-10 h-14 border-2 flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
+                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
                                     >
                                         {inputKey[i] || ''}
                                     </div>
