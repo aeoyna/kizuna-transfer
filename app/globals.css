@@ -2,9 +2,12 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #1a1a1a;
-  --accent-fire: #ff5500;
-  --accent-water: #ff9500;
+  --foreground: #660000;
+  /* Dark Red Text */
+  --accent-fire: #d40000;
+  /* Post Red */
+  --accent-water: #ff3333;
+  /* Lighter Red */
   --charcoal-surface: #1e1e1e;
 }
 
