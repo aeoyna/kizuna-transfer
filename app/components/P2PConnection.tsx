@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     Copy, CheckCircle2, FileIcon, Download, Upload, XCircle, Loader2, HardDrive, Zap,
     CalendarClock, KeyRound, ArrowRight, Terminal, Share2, Mail, Twitter, ShieldAlert,
-    QrCode, Users, Play, Plus, BookOpen, HelpCircle
+    QrCode, Users, Play, Plus, BookOpen, HelpCircle, Lock, Unlock
 } from 'lucide-react';
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -247,6 +247,14 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     // Security Logic Refs
     const securityLogRef = useRef<number[]>([]);
     const rotateIdentityRef = useRef<() => void>(() => { });
+
+    // Connection Lock
+    const [isLocked, setIsLocked] = useState(false);
+    const isLockedRef = useRef(false); // Ref for immediate access in callbacks
+
+    useEffect(() => {
+        isLockedRef.current = isLocked;
+    }, [isLocked]);
 
     // --- Helpers ---
 
@@ -806,6 +814,13 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             });
 
             peer.on('connection', (conn: DataConnection) => {
+                if (isLockedRef.current) {
+                    addLog(`Security: Rejected connection from ${conn.peer} (Room Locked)`);
+                    setTimeout(() => conn.send({ type: 'error', message: t('connectionRejected') }), 500);
+                    setTimeout(() => conn.close(), 1000);
+                    return;
+                }
+
                 if (connectionsRef.current.length >= PARALLEL_STREAMS + 2) {
                     addLog(`Security: Rejected connection from ${conn.peer} (Limit reached)`);
                     recordFailure();
@@ -959,6 +974,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                                 conn.close();
                             }
                         }}
+                        isLocked={isLocked}
+                        onToggleLock={() => setIsLocked(!isLocked)}
                     />
                 ) : (
                     <InitialView
@@ -1336,9 +1353,11 @@ interface SenderViewProps {
     senderStats: SenderStats;
     peerDiffs: PeerDiffs;
     onStopPeer: (peerId: string) => void;
+    isLocked: boolean;
+    onToggleLock: () => void;
 }
 
-function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer }: SenderViewProps) {
+function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer, isLocked, onToggleLock }: SenderViewProps) {
     const { t } = useLanguage();
     const mainFile = hostedFiles[0];
     const [isSharing, setIsSharing] = useState(false);
@@ -1379,6 +1398,11 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                 <div className="space-y-6">
                     {/* Postal Code Card */}
                     <div className="envelope-card p-8 rounded-sm  max-w-sm mx-auto transform paper-texture relative">
+                        {isLocked && (
+                            <div className="absolute top-4 left-4 bg-gray-900 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-20">
+                                <Lock size={12} /> {t('roomLocked')}
+                            </div>
+                        )}
                         <div className="absolute top-4 right-4 post-stamp border-[var(--theme-primary)] text-[var(--theme-primary)]">
                             PRIORITY
                         </div>
@@ -1395,17 +1419,30 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                             </div>
                             <Mail size={24} className="mx-auto text-[var(--theme-dark)]/20" />
                         </div>
-                        <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative mt-4">
+                        <div className={`aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative mt-4 transition-opacity duration-300 ${isLocked ? 'opacity-50 grayscale' : 'opacity-100'}`}>
                             <QRCodeSVG value={mainFile.downloadUrl} className="w-full h-full opacity-90" />
+                            {isLocked && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Lock size={48} className="text-gray-400" />
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={handleCopyLink}
-                            className="flex-1 bg-[var(--theme-lighter)] border-2 border-[var(--theme-light)] text-[var(--theme-dark)] py-3 rounded-md font-bold hover:bg-[var(--theme-light)] transition-colors flex items-center justify-center gap-2 font-serif"
+                            className={`flex-1 bg-[var(--theme-lighter)] border-2 border-[var(--theme-light)] text-[var(--theme-dark)] py-3 rounded-md font-bold hover:bg-[var(--theme-light)] transition-colors flex items-center justify-center gap-2 font-serif ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={isLocked}
                         >
                             {isSharing ? <CheckCircle2 size={18} /> : <Copy size={18} />}
                             {isSharing ? t('linkCopied') : t('copyAddress')}
+                        </button>
+                        <button
+                            onClick={onToggleLock}
+                            className={`px-4 rounded-md border-2 font-bold transition-colors flex items-center justify-center ${isLocked ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                            title={isLocked ? t('unlockRoom') : t('lockRoom')}
+                        >
+                            {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
                         </button>
                     </div>
                 </div>

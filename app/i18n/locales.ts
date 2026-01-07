@@ -49,7 +49,12 @@ export const translations = {
         merit3: "Blazing Fast - Direct transfer speed.",
         p2pDemerits: "Keep in Mind",
         demerit1: "Keep This Tab Open - Or transfer will stop.",
-        demerit2: "Network Restrictions - Firewall may block connection."
+        demerit2: "Network Restrictions - Firewall may block connection.",
+        lockRoom: "Lock Room",
+        unlockRoom: "Unlock Room",
+        roomLocked: "Room Locked",
+        roomLockedDesc: "No new connections allowed.",
+        connectionRejected: "Connection Rejected: Room is locked."
     },
     ja: {
         sendFiles: "ファイルを送る",
@@ -99,7 +104,12 @@ export const translations = {
         merit3: "超高速転送 - 回線速度の限界まで出せます。",
         p2pDemerits: "注意点",
         demerit1: "タブを閉じないで - 転送中はページを開いたままに。",
-        demerit2: "ネットワーク制限 - 会社のWiFi等では繋がらない場合があります。"
+        demerit2: "ネットワーク制限 - 会社のWiFi等では繋がらない場合があります。",
+        lockRoom: "部屋をロック",
+        unlockRoom: "ロック解除",
+        roomLocked: "部屋はロック済み",
+        roomLockedDesc: "新規接続を受け付けません。",
+        connectionRejected: "接続拒否: 部屋がロックされています。"
     },
     zh: {
         sendFiles: "发送文件",
@@ -149,7 +159,12 @@ export const translations = {
         merit3: "极速传输 - 点对点直接互传。",
         p2pDemerits: "注意事项",
         demerit1: "保持页面开启 - 关闭标签页将停止传输。",
-        demerit2: "网络限制 - 防火墙可能会阻止连接。"
+        demerit2: "网络限制 - 防火墙可能会阻止连接。",
+        lockRoom: "锁定房间",
+        unlockRoom: "解锁房间",
+        roomLocked: "房间已锁定",
+        roomLockedDesc: "不再接受新连接。",
+        connectionRejected: "连接拒绝：房间已锁定。"
     },
     ko: {
         sendFiles: "파일 보내기",
@@ -199,6 +214,11 @@ export const translations = {
         merit3: "초고속 전송 - 직접 연결로 가장 빠른 속도.",
         p2pDemerits: "주의사항",
         demerit1: "탭을 닫지 마세요 - 전송 중에는 페이지를 유지해야 합니다.",
-        demerit2: "네트워크 제한 - 방화벽 등으로 연결이 차단될 수 있습니다."
+        demerit2: "네트워크 제한 - 방화벽 등으로 연결이 차단될 수 있습니다.",
+        lockRoom: "방 잠그기",
+        unlockRoom: "잠금 해제",
+        roomLocked: "방이 잠김",
+        roomLockedDesc: "새로운 연결을 허용하지 않습니다.",
+        connectionRejected: "연결 거부: 방이 잠겼습니다."
     }
 };
