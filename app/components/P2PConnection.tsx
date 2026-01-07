@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     Copy, CheckCircle2, FileIcon, Download, Upload, XCircle, Loader2, HardDrive, Zap,
     CalendarClock, KeyRound, ArrowRight, Terminal, Share2, Mail, Twitter, ShieldAlert,
-    QrCode, Users, Play, Plus, BookOpen
+    QrCode, Users, Play, Plus, BookOpen, HelpCircle
 } from 'lucide-react';
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -915,6 +915,7 @@ interface InitialViewProps {
 function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify }: InitialViewProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
+    const [showHelp, setShowHelp] = useState(false);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -929,6 +930,15 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                 <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-gradient-to-br from-red-100 to-transparent rounded-full blur-3xl opacity-30" />
                 <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-gradient-to-bl from-red-200 to-transparent rounded-full blur-3xl opacity-30" />
             </div>
+
+            {/* Help Button */}
+            <button
+                onClick={() => setShowHelp(true)}
+                className="absolute top-6 right-6 flex items-center gap-2 text-gray-500 hover:text-black transition-colors z-20"
+            >
+                <HelpCircle size={20} />
+                <span className="text-sm font-bold">How to Use</span>
+            </button>
 
             <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-center gap-16 md:gap-32">
                 <div
@@ -950,12 +960,12 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         <div className="bg-white/10 p-4 rounded-full mb-4 backdrop-blur-sm border border-white/20">
                             <Mail className="w-10 h-10 text-white" />
                         </div>
-                        <h2 className="text-4xl font-black text-white tracking-widest text-engraved font-serif">POST</h2>
+                        <h2 className="text-4xl font-black text-white tracking-widest text-engraved font-serif">SEND FILES</h2>
                     </div>
 
                     <div className="text-center z-10">
-                        <p className="text-white/90 font-medium text-lg group-hover:scale-105 transition-transform font-serif italic">Send a Letter</p>
-                        <p className="text-white/60 text-xs mt-1 uppercase tracking-wider">Drop file to mail</p>
+                        <p className="text-white/90 font-bold text-lg group-hover:scale-105 transition-transform">Click or Drag & Drop</p>
+                        <p className="text-white/60 text-xs mt-1 uppercase tracking-wider font-serif italic">The Postbox</p>
                     </div>
 
                     {/* Bottom Plate */}
@@ -977,8 +987,8 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
                 <div className="flex flex-col items-center gap-8 w-72">
                     <div className="text-center">
-                        <h2 className="text-3xl font-black text-gray-900 mb-2">RECEIVE</h2>
-                        <p className="text-gray-500">Enter the 6-digit code</p>
+                        <h2 className="text-2xl font-black text-gray-900 mb-2">RECEIVE FILES</h2>
+                        <p className="text-gray-500 text-sm">Enter the code from sender</p>
                     </div>
 
                     <div className="w-full space-y-6">
@@ -1087,6 +1097,52 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                 )}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {showHelp && (
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden relative">
+                        <button
+                            onClick={() => setShowHelp(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-900"
+                        >
+                            <XCircle size={24} />
+                        </button>
+
+                        <div className="p-8">
+                            <h3 className="text-2xl font-bold mb-6 text-center">How to Use</h3>
+
+                            <div className="space-y-8">
+                                <div className="flex gap-4">
+                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <Upload className="text-[#d40000]" size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-lg mb-1">1. Send Files</h4>
+                                        <p className="text-gray-600 text-sm">Drag & drop your files into the Red Postbox on the left. You will get a 6-digit code.</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <Download className="text-gray-600" size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-lg mb-1">2. Receive Files</h4>
+                                        <p className="text-gray-600 text-sm">Enter the 6-digit code into the boxes on the right. Usually, tell this code to your partner.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setShowHelp(false)}
+                                className="w-full mt-8 bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-black transition-colors"
+                            >
+                                Got it
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
