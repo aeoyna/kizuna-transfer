@@ -961,22 +961,37 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
             <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-center gap-16 md:gap-32">
                 <div
-                    className={`relative w-72 h-96 bg-[#EE0000] rounded-t-[5rem] rounded-b-3xl shadow-xl flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-2xl group overflow-hidden border-b-8 border-[#AA0000] ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
+                    className={`relative w-72 h-96 bg-[#CC0000] rounded-t-[5rem] rounded-b-xl shadow-2xl flex flex-col items-center justify-between p-8 cursor-pointer transition-all duration-300 hover:translate-y-[-8px] hover:shadow-red-900/40 group overflow-hidden border-b-0 postbox-slot ${isDragging ? 'ring-4 ring-yellow-400' : ''}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
                 >
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="flex flex-col items-center mt-8">
-                        <Share2 className="w-16 h-16 text-white mb-4" />
-                        <h2 className="text-3xl font-black text-white tracking-tight">POST</h2>
+                    <div className="absolute top-0 left-0 right-0 h-4 bg-black/10 rounded-t-[5rem]" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+
+                    {/* Postbox Slot Visual */}
+                    <div className="w-48 h-3 bg-black/40 rounded-full mt-12 mb-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] border-b border-white/10 relative">
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 text-[10px] text-white/60 font-mono tracking-widest mt-1">POST HERE</div>
                     </div>
-                    <div className="text-center">
-                        <p className="text-white/90 font-medium text-lg group-hover:scale-105 transition-transform">Tap to share</p>
-                        <p className="text-white/60 text-sm mt-1">or drop file</p>
+
+                    <div className="flex flex-col items-center z-10">
+                        <div className="bg-white/10 p-4 rounded-full mb-4 backdrop-blur-sm border border-white/20">
+                            <Mail className="w-10 h-10 text-white" />
+                        </div>
+                        <h2 className="text-4xl font-black text-white tracking-widest text-engraved font-serif">POST</h2>
                     </div>
-                    <div className="w-12 h-1 bg-white/20 rounded-full" />
+
+                    <div className="text-center z-10">
+                        <p className="text-white/90 font-medium text-lg group-hover:scale-105 transition-transform font-serif italic">Send a Letter</p>
+                        <p className="text-white/60 text-xs mt-1 uppercase tracking-wider">Drop file to mail</p>
+                    </div>
+
+                    {/* Bottom Plate */}
+                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-black/20 backdrop-blur-md flex items-center justify-center">
+                        <div className="w-16 h-1 bg-white/30 rounded-full" />
+                    </div>
+
                     <input
                         id="file-input"
                         type="file"
@@ -1133,22 +1148,32 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
             </div>
 
             <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8 items-start">
-                <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100 shadow-sm">
-                    <div className="text-center mb-8">
-                        <h1 className="text-6xl font-black tracking-tighter text-gray-900 mb-2">{file.transferKey}</h1>
-                        <p className="text-gray-400 font-medium">Temporary Code</p>
+                <div className="envelope-card p-8 rounded-sm rotate-1 max-w-sm mx-auto transform transition-transform hover:rotate-0 paper-texture">
+                    <div className="absolute top-4 right-4 post-stamp border-red-500 text-red-500">
+                        PRIORITY
                     </div>
-                    <div className="aspect-square bg-white rounded-2xl p-4 shadow-inner mb-6 mx-auto w-48">
-                        <QRCodeSVG value={file.downloadUrl} className="w-full h-full" />
+                    <div className="text-center mb-8 mt-6">
+                        <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Postal Code</div>
+                        <h1 className="text-6xl font-serif font-bold tracking-widest text-[#8b0000] mb-2 font-mono">{file.transferKey}</h1>
+                        <div className="w-full h-px bg-gray-200 my-4 relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-red-500 to-blue-500 opacity-20" />
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-red-500 to-blue-500 opacity-20" />
+                        </div>
+                    </div>
+                    <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative">
+                        <div className="absolute -top-3 -left-3 text-gray-300 transform -rotate-45">
+                            <Mail size={24} />
+                        </div>
+                        <QRCodeSVG value={file.downloadUrl} className="w-full h-full opacity-90" />
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => { navigator.clipboard.writeText(file.downloadUrl); alert("Link Copied!"); }}
-                            className="flex-1 bg-white border-2 border-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 bg-red-50 border-2 border-red-100 text-red-900 py-3 rounded-md font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-serif"
                         >
-                            <Copy size={18} /> Copy Link
+                            <Copy size={18} /> Copy Address
                         </button>
-                        <button onClick={() => setIsSharing(!isSharing)} className="bg-gray-900 text-white p-3 rounded-xl hover:bg-black transition-colors">
+                        <button onClick={() => setIsSharing(!isSharing)} className="bg-[#8b0000] text-white p-3 rounded-md hover:bg-[#660000] transition-colors">
                             <Share2 size={18} />
                         </button>
                     </div>
@@ -1156,13 +1181,13 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
 
                 <div className="space-y-6">
                     <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className="w-16 h-16 bg-[#ffeedd] rounded-2xl flex items-center justify-center text-[#ff5500]">
+                        <div className="flex items-start gap-4 mb-6 border-b border-dashed border-gray-200 pb-4">
+                            <div className="w-16 h-16 bg-red-50 rounded-lg flex items-center justify-center text-[#8b0000] border border-red-100 shadow-sm rotate-3">
                                 <FileIcon size={32} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-lg text-gray-900 truncate max-w-[200px]">{file.file.name}</h3>
-                                <p className="text-sm text-gray-500">{(file.file.size / 1024 / 1024).toFixed(1)} MB • {file.file.type || 'Unknown'}</p>
+                                <h3 className="font-bold text-lg text-gray-900 truncate max-w-[200px] font-serif">{file.file.name}</h3>
+                                <p className="text-sm text-gray-500 font-mono">{(file.file.size / 1024 / 1024).toFixed(1)} MB</p>
                             </div>
                         </div>
 
@@ -1209,14 +1234,15 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                     )}
 
                     <div
-                        className={`relative w-full h-32 bg-[#EE0000] rounded-3xl shadow-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-2xl border-b-8 border-[#AA0000] overflow-hidden ${isDragging ? 'ring-4 ring-[#1a1a1a]' : ''}`}
+                        className={`relative w-full h-32 bg-[#CC0000] rounded-xl shadow-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-xl border-4 border-[#990000] overflow-hidden ${isDragging ? 'ring-4 ring-yellow-400' : ''} postbox-slot`}
                         onClick={() => document.getElementById('add-file-input')?.click()}
                         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={handleDrop}
                     >
+                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-2 bg-black/20 rounded-full" />
                         <div className="flex items-center gap-2 text-white/90">
-                            <Upload size={24} /> <span className="font-black text-xl">ADD FILE</span>
+                            <Mail size={24} /> <span className="font-bold text-xl font-serif tracking-widest">SEND MORE</span>
                         </div>
                         <input id="add-file-input" type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onAddFile(e.target.files[0])} />
                     </div>
@@ -1255,8 +1281,8 @@ function ReceiverView({ status, file, progress, speed, activeStreams, error, onS
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100 text-center">
-                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                        <FileIcon size={40} className="text-gray-600" />
+                    <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md border-4 border-white">
+                        <Mail size={40} className="text-[#8b0000]" />
                     </div>
 
                     <h2 className="text-2xl font-black text-gray-900 mb-2 truncate px-4">{file.name}</h2>
@@ -1269,7 +1295,7 @@ function ReceiverView({ status, file, progress, speed, activeStreams, error, onS
                                 ${isResume ? 'bg-red-800 hover:bg-red-900 shadow-red-200' : 'bg-[#d40000] hover:bg-[#b30000] shadow-red-200'}
                             `}
                         >
-                            {isResume ? <><Play size={24} /> Resume Download</> : <><Download size={24} /> Save File</>}
+                            {isResume ? <><Play size={24} /> Resume Delivery</> : <><Download size={24} /> Receive Mail</>}
                         </button>
                     ) : status === 'connected' ? (
                         <div className="space-y-4">
@@ -1286,6 +1312,10 @@ function ReceiverView({ status, file, progress, speed, activeStreams, error, onS
                                     <div className="text-xs text-gray-400">{activeStreams} streams</div>
                                 </div>
                             </div>
+                        </div>
+                    ) : status === 'ready' ? (
+                        <div className="py-8 animate-pulse text-[#d40000] font-bold text-xl post-stamp rotate-12 mx-auto w-max border-4">
+                            DELIVERED
                         </div>
                     ) : status === 'scheduled' ? (
                         <div className="py-8">
