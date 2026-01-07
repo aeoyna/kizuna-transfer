@@ -779,7 +779,9 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
     }, []);
 
     // File Handle
-    const handleFileSelect = async (file: File) => {
+    const handleFileSelect = async (files: File[]) => {
+        if (files.length === 0) return;
+
         const baseUrl = window.location.origin;
         // If first file, generate key. If additional, keep key.
         let currentKey = hostedFiles.length > 0 ? hostedFiles[0].transferKey : null;
@@ -790,21 +792,23 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         }
 
         const shareUrl = `${baseUrl}/${currentKey}`;
-        const newFileId = Math.random().toString(36).substring(7);
 
-        addLog(`File added: ${file.name} (${file.size}). Key: ${currentKey}`);
+        const newFiles: HostedFile[] = files.map(file => {
+            const newFileId = Math.random().toString(36).substring(7);
+            addLog(`File added: ${file.name} (${file.size}). Key: ${currentKey}`);
 
-        const newFile: HostedFile = {
-            id: newFileId,
-            file,
-            downloadUrl: shareUrl,
-            downloads: 0,
-            availableFrom: 0,
-            transferKey: currentKey
-        };
+            return {
+                id: newFileId,
+                file,
+                downloadUrl: shareUrl,
+                downloads: 0,
+                availableFrom: 0,
+                transferKey: currentKey!
+            };
+        });
 
         // Append to list instead of replacing
-        setHostedFiles(prev => [...prev, newFile]);
+        setHostedFiles(prev => [...prev, ...newFiles]);
         setStatus('ready');
     };
 
@@ -898,7 +902,7 @@ function LogViewer({ logs }: { logs: string[] }) {
 }
 
 interface InitialViewProps {
-    onFileSelect: (file: File) => void;
+    onFileSelect: (files: File[]) => void;
     onJoin: (key: string) => void;
     inputKey: string;
     setInputKey: (key: string) => void;
@@ -915,8 +919,8 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) onFileSelect(file);
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) onFileSelect(files);
     };
 
     return (
@@ -963,7 +967,8 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         id="file-input"
                         type="file"
                         className="hidden"
-                        onChange={(e) => e.target.files?.[0] && onFileSelect(e.target.files[0])}
+                        multiple
+                        onChange={(e) => e.target.files && e.target.files.length > 0 && onFileSelect(Array.from(e.target.files))}
                     />
                 </div>
 
@@ -1093,7 +1098,7 @@ interface SenderViewProps {
     hostedFiles: HostedFile[];
     activeStreams: number;
     onSchedule: (timestamp: number) => void;
-    onAddFile: (file: File) => void;
+    onAddFile: (files: File[]) => void;
     senderStats: SenderStats;
     peerDiffs: PeerDiffs;
     onStopPeer: (peerId: string) => void;
@@ -1107,8 +1112,8 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f) onAddFile(f);
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) onAddFile(files);
     };
 
     return (
@@ -1171,7 +1176,7 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                             <Mail size={24} /> <span className="font-bold text-xl font-serif tracking-widest text-engraved">POST MORE</span>
                         </div>
                         <div className="text-white/60 text-xs uppercase tracking-wider mt-1">Drop additional letters here</div>
-                        <input id="add-file-input" type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onAddFile(e.target.files[0])} />
+                        <input id="add-file-input" type="file" multiple className="hidden" onChange={(e) => e.target.files && e.target.files.length > 0 && onAddFile(Array.from(e.target.files))} />
                     </div>
 
                     {/* Ad Slot */}
