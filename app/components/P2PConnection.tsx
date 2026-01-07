@@ -9,6 +9,8 @@ import {
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
 import AdSlot from './AdSlot';
+import { LanguageProvider, useLanguage } from '../i18n/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 // --- Constants ---
 const CHUNK_SIZE = 64 * 1024; // 64KB Optimized for Speed
@@ -103,11 +105,108 @@ interface WorkerMessage {
     data: ArrayBuffer;
 }
 
+// --- Theme Types & Mapping ---
+type ThemeColors = {
+    primary: string; // Main color (Postbox) #d40000
+    dark: string;    // Text accents #8b0000
+    hover: string;   // Hover states #b30000
+    light: string;   // Light backgrounds #fee2e2 (red-100)
+    lighter: string; // Lighter backgrounds #fef2f2 (red-50)
+    subtle: string;  // Borders #fecaca (red-200)
+};
+
+const DEFAULT_THEME: ThemeColors = {
+    primary: '#d40000',
+    dark: '#8b0000',
+    hover: '#b30000',
+    light: '#fee2e2',
+    lighter: '#fef2f2',
+    subtle: '#fecaca'
+};
+
+const COUNTRY_THEMES: Record<string, ThemeColors> = {
+    'US': { // USA - Blue
+        primary: '#0033A0',
+        dark: '#001E60',
+        hover: '#00267F',
+        light: '#dbeafe', // blue-100
+        lighter: '#eff6ff', // blue-50
+        subtle: '#bfdbfe' // blue-200
+    },
+    'JP': DEFAULT_THEME, // Japan - Red
+    'KR': { // Korea - Red (slightly different standard, but sticking to default for now or custom)
+        primary: '#C60C30',
+        dark: '#8a0821',
+        hover: '#a30a27',
+        light: '#ffe4e6',
+        lighter: '#fff1f2',
+        subtle: '#fecdd3'
+    },
+    'CN': { // China - Green
+        primary: '#006400',
+        dark: '#004000',
+        hover: '#005000',
+        light: '#dcfce7', // green-100
+        lighter: '#f0fdf4', // green-50
+        subtle: '#bbf7d0' // green-200
+    },
+    'TW': DEFAULT_THEME, // Taiwan - Red
+    'TH': DEFAULT_THEME, // Thailand - Red
+    'VN': { // Vietnam - Yellow/Gold (using Dark Goldenrod for visibility on white)
+        primary: '#DAA520',
+        dark: '#B8860B',
+        hover: '#CD950C',
+        light: '#fef9c3', // yellow-100
+        lighter: '#fefce8', // yellow-50
+        subtle: '#fde047' // yellow-200ish
+    },
+    'ID': { // Indonesia - Orange
+        primary: '#FF4500',
+        dark: '#CC3700',
+        hover: '#E63E00',
+        light: '#ffedd5', // orange-100
+        lighter: '#fff7ed', // orange-50
+        subtle: '#fed7aa' // orange-200
+    },
+    'MY': DEFAULT_THEME, // Malaysia - Red
+    'KP': { // North Korea - Blue
+        primary: '#024FA2',
+        dark: '#003366',
+        hover: '#003F82',
+        light: '#dbeafe',
+        lighter: '#eff6ff',
+        subtle: '#bfdbfe'
+    }
+};
+
 // --- Main Component ---
 export default function P2PConnection({ initialKey }: { initialKey?: string }) {
+    return (
+        <LanguageProvider>
+            <P2PConnectionContent initialKey={initialKey} />
+        </LanguageProvider>
+    );
+}
+
+function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
+    const { t } = useLanguage();
     const [myId, setMyId] = useState<string>('');
     const [status, setStatus] = useState<'initializing' | 'input_key' | 'ready' | 'connecting' | 'connected' | 'waiting_for_save' | 'scheduled'>('initializing');
     const [hostedFiles, setHostedFiles] = useState<HostedFile[]>([]);
+    const [theme, setTheme] = useState<ThemeColors>(DEFAULT_THEME);
+
+    // Fetch User Country
+    useEffect(() => {
+        fetch('https://ipapi.co/json/')
+            .then(res => res.json())
+            .then(data => {
+                const country = data.country_code;
+                if (country && COUNTRY_THEMES[country]) {
+                    setTheme(COUNTRY_THEMES[country]);
+                }
+            })
+            .catch(err => console.error('Failed to detect location for theme:', err));
+    }, []);
 
     // Multi-file support: Store array of incoming files
     const [incomingFiles, setIncomingFiles] = useState<IncomingFileMeta[]>([]);
@@ -654,7 +753,8 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 addLog("Connection timeout.");
 
                 // --- CUSTOM USER ERROR: Address not found ---
-                setError("宛名が見つかりませんでした");
+                // --- CUSTOM USER ERROR: Address not found ---
+                setError(t('addressNotFound'));
                 setInputKey('');
                 setTimeout(() => {
                     setError(null);
@@ -726,7 +826,8 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                     setInputKey('');
 
                     // --- CUSTOM USER ERROR: Address not found ---
-                    setError("宛名が見つかりませんでした");
+                    // --- CUSTOM USER ERROR: Address not found ---
+                    setError(t('addressNotFound'));
                     setTimeout(() => setError(null), 1000);
 
                     // Optional: Don't hard reload, just let error show
@@ -817,8 +918,17 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
     };
 
     // Render
+    const themeStyle = {
+        '--theme-primary': theme.primary,
+        '--theme-dark': theme.dark,
+        '--theme-hover': theme.hover,
+        '--theme-light': theme.light,
+        '--theme-lighter': theme.lighter,
+        '--theme-subtle': theme.subtle,
+    } as React.CSSProperties;
+
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col" style={themeStyle}>
             <div className="flex-1">
                 {incomingFiles.length > 0 ? (
                     <ReceiverView
@@ -913,6 +1023,7 @@ interface InitialViewProps {
 }
 
 function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify }: InitialViewProps) {
+    const { t } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
     const [showHelp, setShowHelp] = useState(false);
@@ -927,18 +1038,21 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
     return (
         <div className="h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-white text-black">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-gradient-to-br from-red-100 to-transparent rounded-full blur-3xl opacity-30" />
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-gradient-to-br from-[var(--theme-light)] to-transparent rounded-full blur-3xl opacity-30" />
                 <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-gradient-to-bl from-red-200 to-transparent rounded-full blur-3xl opacity-30" />
             </div>
 
             {/* Help Button */}
-            <button
-                onClick={() => setShowHelp(true)}
-                className="absolute top-6 right-6 flex items-center gap-2 text-gray-500 hover:text-black transition-colors z-20"
-            >
-                <HelpCircle size={20} />
-                <span className="text-sm font-bold">How to Use</span>
-            </button>
+            <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
+                <LanguageSwitcher />
+                <button
+                    onClick={() => setShowHelp(true)}
+                    className="flex items-center gap-2 text-gray-500 hover:text-black transition-colors"
+                >
+                    <HelpCircle size={20} />
+                    <span className="text-sm font-bold">{t('howToUse')}</span>
+                </button>
+            </div>
 
             <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-center gap-16 md:gap-32">
                 <div
@@ -960,12 +1074,15 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         <div className="bg-white/10 p-4 rounded-full mb-4 backdrop-blur-sm border border-white/20">
                             <Mail className="w-10 h-10 text-white" />
                         </div>
-                        <h2 className="text-4xl font-black text-white tracking-widest text-engraved font-serif">SEND FILES</h2>
+                        <div className="bg-white/10 p-4 rounded-full mb-4 backdrop-blur-sm border border-white/20">
+                            <Mail className="w-10 h-10 text-white" />
+                        </div>
+                        <h2 className="text-4xl font-black text-white tracking-widest text-engraved font-serif">{t('sendFiles')}</h2>
                     </div>
 
                     <div className="text-center z-10">
-                        <p className="text-white/90 font-bold text-lg group-hover:scale-105 transition-transform">Click or Drag & Drop</p>
-                        <p className="text-white/60 text-xs mt-1 uppercase tracking-wider font-serif italic">The Postbox</p>
+                        <p className="text-white/90 font-bold text-lg group-hover:scale-105 transition-transform">{t('clickOrDrag')}</p>
+                        <p className="text-white/60 text-xs mt-1 uppercase tracking-wider font-serif italic">{t('postbox')}</p>
                     </div>
 
                     {/* Bottom Plate */}
@@ -986,166 +1103,167 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                 <div className="block md:hidden w-64 h-px bg-gray-200" />
 
                 <div className="flex flex-col items-center gap-8 w-72">
-                    <div className="text-center">
-                        <h2 className="text-2xl font-black text-gray-900 mb-2">RECEIVE FILES</h2>
-                        <p className="text-gray-500 text-sm">Enter the code from sender</p>
-                    </div>
-
-                    <div className="w-full space-y-6">
-                        <div className="flex items-center justify-center gap-4">
-                            <div className="flex gap-2">
-                                {[0, 1, 2].map((i) => (
-                                    <div
-                                        key={i}
-                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
-                                    >
-                                        {inputKey[i] || ''}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="text-2xl font-bold text-gray-300">-</div>
-                            <div className="flex gap-2">
-                                {[3, 4, 5].map((i) => (
-                                    <div
-                                        key={i}
-                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
-                                    >
-                                        {inputKey[i] || ''}
-                                    </div>
-                                ))}
-                            </div>
+                    <div className="flex flex-col items-center gap-8 w-72">
+                        <div className="text-center">
+                            <h2 className="text-2xl font-black text-gray-900 mb-2">{t('receiveFiles')}</h2>
+                            <p className="text-gray-500 text-sm">{t('enterCode')}</p>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                        <div className="w-full space-y-6">
+                            <div className="flex items-center justify-center gap-4">
+                                <div className="flex gap-2">
+                                    {[0, 1, 2].map((i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[var(--theme-primary)] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-[var(--theme-dark)] border-[var(--theme-dark)]' : 'text-gray-300'}`}
+                                        >
+                                            {inputKey[i] || ''}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="text-2xl font-bold text-gray-300">-</div>
+                                <div className="flex gap-2">
+                                    {[3, 4, 5].map((i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[var(--theme-primary)] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-[var(--theme-dark)] border-[var(--theme-dark)]' : 'text-gray-300'}`}
+                                        >
+                                            {inputKey[i] || ''}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                                    <button
+                                        key={n}
+                                        onClick={() => {
+                                            if (inputKey.length < 6) {
+                                                const newVal = inputKey + n;
+                                                setInputKey(newVal);
+                                                if (newVal.length === 6) onJoin(newVal);
+                                            }
+                                        }}
+                                        className="h-12 rounded-lg bg-gray-50 text-gray-900 font-bold hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                                    >
+                                        {n}
+                                    </button>
+                                ))}
+                                <button onClick={() => setInputKey('')} className="h-12 rounded-lg bg-[var(--theme-lighter)] text-[var(--theme-primary)] font-bold hover:bg-[var(--theme-light)] transition-colors text-xs">CLR</button>
                                 <button
-                                    key={n}
                                     onClick={() => {
                                         if (inputKey.length < 6) {
-                                            const newVal = inputKey + n;
+                                            const newVal = inputKey + '0';
                                             setInputKey(newVal);
                                             if (newVal.length === 6) onJoin(newVal);
                                         }
                                     }}
-                                    className="h-12 rounded-lg bg-gray-50 text-gray-900 font-bold hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                                    className="h-12 rounded-lg bg-gray-50 text-gray-900 font-bold hover:bg-gray-100 transition-colors"
                                 >
-                                    {n}
+                                    0
                                 </button>
-                            ))}
-                            <button onClick={() => setInputKey('')} className="h-12 rounded-lg bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-colors text-xs">CLR</button>
-                            <button
-                                onClick={() => {
-                                    if (inputKey.length < 6) {
-                                        const newVal = inputKey + '0';
-                                        setInputKey(newVal);
-                                        if (newVal.length === 6) onJoin(newVal);
-                                    }
-                                }}
-                                className="h-12 rounded-lg bg-gray-50 text-gray-900 font-bold hover:bg-gray-100 transition-colors"
-                            >
-                                0
-                            </button>
-                            <button
-                                onClick={() => setInputKey(inputKey.slice(0, -1))}
-                                className="h-12 rounded-lg bg-gray-50 text-gray-900 font-bold hover:bg-gray-100 transition-colors flex items-center justify-center"
-                            >
-                                <ArrowRight className="rotate-180" size={16} />
-                            </button>
+                                <button
+                                    onClick={() => setInputKey(inputKey.slice(0, -1))}
+                                    className="h-12 rounded-lg bg-gray-50 text-gray-900 font-bold hover:bg-gray-100 transition-colors flex items-center justify-center"
+                                >
+                                    <ArrowRight className="rotate-180" size={16} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {(error || isCaptchaActive) && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
-                        {isCaptchaActive ? (
-                            <div className="space-y-4">
-                                <ShieldAlert className="w-12 h-12 text-[#d40000] mx-auto" />
-                                <h3 className="text-xl font-bold text-center">Security Check</h3>
-                                <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
-                                        value={captchaInput}
-                                        onChange={(e) => setCaptchaInput(e.target.value)}
-                                        placeholder="?"
-                                    />
-                                    <button
-                                        onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
-                                        className="bg-[#d40000] text-white px-6 rounded-lg font-bold hover:bg-[#b30000]"
-                                    >
-                                        Verify
-                                    </button>
+                {(error || isCaptchaActive) && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
+                        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
+                            {isCaptchaActive ? (
+                                <div className="space-y-4">
+                                    <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
+                                    <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
+                                    <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
+                                            value={captchaInput}
+                                            onChange={(e) => setCaptchaInput(e.target.value)}
+                                            placeholder="?"
+                                        />
+                                        <button
+                                            onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
+                                            className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
+                                        >
+                                            {t('verify')}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="text-center space-y-4">
-                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                                    <ShieldAlert className="w-8 h-8 text-red-600" />
+                            ) : (
+                                <div className="text-center space-y-4">
+                                    <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
+                                        <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
+                                    <p className="text-gray-600 font-medium">{error}</p>
+                                    {error !== t('addressNotFound') && (
+                                        <button
+                                            onClick={() => window.location.reload()}
+                                            className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
+                                        >
+                                            {t('retry')}
+                                        </button>
+                                    )}
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
-                                <p className="text-gray-600 font-medium">{error}</p>
-                                {error !== "宛名が見つかりませんでした" && (
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
-                                    >
-                                        Retry
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {showHelp && (
-                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden relative">
-                        <button
-                            onClick={() => setShowHelp(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-900"
-                        >
-                            <XCircle size={24} />
-                        </button>
-
-                        <div className="p-8">
-                            <h3 className="text-2xl font-bold mb-6 text-center">How to Use</h3>
-
-                            <div className="space-y-8">
-                                <div className="flex gap-4">
-                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <Upload className="text-[#d40000]" size={24} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-lg mb-1">1. Send Files</h4>
-                                        <p className="text-gray-600 text-sm">Drag & drop your files into the Red Postbox on the left. You will get a 6-digit code.</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4">
-                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <Download className="text-gray-600" size={24} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-lg mb-1">2. Receive Files</h4>
-                                        <p className="text-gray-600 text-sm">Enter the 6-digit code into the boxes on the right. Usually, tell this code to your partner.</p>
-                                    </div>
-                                </div>
-                            </div>
-
+                {showHelp && (
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                        <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden relative">
                             <button
                                 onClick={() => setShowHelp(false)}
-                                className="w-full mt-8 bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-black transition-colors"
+                                className="absolute top-4 right-4 text-gray-400 hover:text-gray-900"
                             >
-                                Got it
+                                <XCircle size={24} />
                             </button>
+
+                            <div className="p-8">
+                                <h3 className="text-2xl font-bold mb-6 text-center">{t('howToUse')}</h3>
+                                <div className="space-y-8">
+                                    <div className="flex gap-4">
+                                        <div className="w-12 h-12 bg-[var(--theme-light)] rounded-full flex items-center justify-center flex-shrink-0">
+                                            <Upload className="text-[var(--theme-primary)]" size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-lg mb-1">{t('step1Title')}</h4>
+                                            <p className="text-gray-600 text-sm">{t('step1Desc')}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <Download className="text-gray-600" size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-lg mb-1">{t('step2Title')}</h4>
+                                            <p className="text-gray-600 text-sm">{t('step2Desc')}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowHelp(false)}
+                                    className="w-full mt-8 bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-black transition-colors"
+                                >
+                                    {t('gotIt')}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
@@ -1161,9 +1279,16 @@ interface SenderViewProps {
 }
 
 function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer }: SenderViewProps) {
+    const { t } = useLanguage();
     const mainFile = hostedFiles[0];
     const [isSharing, setIsSharing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(mainFile.downloadUrl);
+        setIsSharing(true);
+        setTimeout(() => setIsSharing(false), 2000);
+    };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -1176,17 +1301,17 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
         <div className="min-h-screen bg-white text-gray-900 p-6 flex flex-col items-center">
             <div className="w-full max-w-4xl flex items-center justify-between mb-12">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#d40000] rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-10 bg-[var(--theme-primary)] rounded-xl flex items-center justify-center">
                         <Users className="text-white" size={20} />
                     </div>
                     <div>
-                        <div className="text-sm font-bold text-[#d40000]">ACTIVE SHARE (Post Office)</div>
-                        <div className="text-xs text-gray-400">Wait for peers</div>
+                        <div className="text-sm font-bold text-[var(--theme-primary)]">{t('activeShare')} ({hostedFiles.length})</div>
+                        <div className="text-xs text-gray-400">{t('waitForPeers')}</div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full border border-gray-100">
-                    <div className={`w-2 h-2 rounded-full ${activeStreams > 0 ? 'bg-red-600 animate-pulse' : 'bg-gray-300'}`} />
-                    <span className="text-xs font-bold text-gray-500">{activeStreams} Active Peers</span>
+                    <div className={`w-2 h-2 rounded-full ${activeStreams > 0 ? 'bg-[var(--theme-primary)] animate-pulse' : 'bg-gray-300'}`} />
+                    <span className="text-xs font-bold text-gray-500">{activeStreams} {t('activePeers')}</span>
                 </div>
             </div>
 
@@ -1194,89 +1319,94 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                 <div className="space-y-6">
                     {/* Postal Code Card */}
                     <div className="envelope-card p-8 rounded-sm  max-w-sm mx-auto transform paper-texture relative">
-                        <div className="absolute top-4 right-4 post-stamp border-red-500 text-red-500">
+                        <div className="absolute top-4 right-4 post-stamp border-[var(--theme-primary)] text-[var(--theme-primary)]">
                             PRIORITY
                         </div>
-                        <div className="text-center mb-8 mt-6">
-                            <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Postal Code</div>
-                            <h1 className="text-6xl font-serif font-bold tracking-widest text-[#8b0000] mb-2 font-mono">
-                                {mainFile.transferKey.slice(0, 3)}-{mainFile.transferKey.slice(3)}
-                            </h1>
+                        <div className="text-center space-y-2">
+                            <p className="text-xs text-[var(--theme-dark)]/60 font-bold uppercase tracking-widest">{t('postalCode')}</p>
+                            <h1 className="text-6xl font-serif font-bold tracking-widest text-[var(--theme-dark)] mb-2 font-mono">{mainFile.transferKey.slice(0, 3)}-{mainFile.transferKey.slice(3)}</h1>
                         </div>
-                        <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative">
-                            <div className="absolute -top-3 -left-3 text-gray-300 transform -rotate-45">
-                                <Mail size={24} />
+
+                        {/* File List */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between text-xs font-bold text-[var(--theme-dark)]/50 uppercase tracking-widest mb-2 border-b border-[#8b0000]/10 pb-2">
+                                <span>{t('lettersToSend')} ({hostedFiles.length})</span>
+                                <span>{t('activeShare')}</span>
                             </div>
+                            <Mail size={24} className="mx-auto text-[var(--theme-dark)]/20" />
+                        </div>
+                        <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative mt-4">
                             <QRCodeSVG value={mainFile.downloadUrl} className="w-full h-full opacity-90" />
                         </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => { navigator.clipboard.writeText(mainFile.downloadUrl); alert("Link Copied!"); }}
-                                className="flex-1 bg-red-50 border-2 border-red-100 text-red-900 py-3 rounded-md font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2 font-serif"
-                            >
-                                <Copy size={18} /> Copy Address
-                            </button>
-                        </div>
                     </div>
-
-                    {/* Send More Postbox */}
-                    <div
-                        className={`relative w-full h-32 bg-[#CC0000] rounded-xl shadow-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-xl border-4 border-[#990000] overflow-hidden ${isDragging ? 'ring-4 ring-yellow-400' : ''} postbox-slot`}
-                        onClick={() => document.getElementById('add-file-input')?.click()}
-                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={handleDrop}
-                    >
-                        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-48 h-3 bg-black/40 rounded-full shadow-inner" />
-                        <div className="flex items-center gap-2 text-white/90 mt-4">
-                            <Mail size={24} /> <span className="font-bold text-xl font-serif tracking-widest text-engraved">POST MORE</span>
-                        </div>
-                        <div className="text-white/60 text-xs uppercase tracking-wider mt-1">Drop additional letters here</div>
-                        <input id="add-file-input" type="file" multiple className="hidden" onChange={(e) => e.target.files && e.target.files.length > 0 && onAddFile(Array.from(e.target.files))} />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleCopyLink}
+                            className="flex-1 bg-[var(--theme-lighter)] border-2 border-[var(--theme-light)] text-[var(--theme-dark)] py-3 rounded-md font-bold hover:bg-[var(--theme-light)] transition-colors flex items-center justify-center gap-2 font-serif"
+                        >
+                            {isSharing ? <CheckCircle2 size={18} /> : <Copy size={18} />}
+                            {isSharing ? t('linkCopied') : t('copyAddress')}
+                        </button>
                     </div>
-
-                    {/* Ad Slot */}
-                    <AdSlot variant="sidebar" />
                 </div>
 
-                <div className="space-y-6">
-                    <h3 className="font-serif text-2xl font-bold text-[#8b0000] pl-2 mb-4 border-b-2 border-red-100 pb-2">Letters to Send ({hostedFiles.length})</h3>
-
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        {hostedFiles.map((file, idx) => (
-                            <div key={file.id} className="bg-white p-4 rounded-sm shadow-sm border border-gray-200 paper-texture relative transform hover:-translate-y-1 transition-transform cursor-default">
-                                <div className="absolute top-2 right-2 opacity-20">
-                                    <Mail size={40} className="text-[#8b0000]" />
-                                </div>
-                                <div className="flex items-center gap-4 relative z-10">
-                                    <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#8b0000] font-bold font-mono border border-red-100">
-                                        {idx + 1}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-gray-900 truncate font-serif">{file.file.name}</h4>
-                                        <p className="text-xs text-gray-500 font-mono">{(file.file.size / 1024 / 1024).toFixed(1)} MB</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                {/* Send More Postbox */}
+                <div
+                    className={`relative w-full h-32 bg-[#CC0000] rounded-xl shadow-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-xl border-4 border-[#990000] overflow-hidden ${isDragging ? 'ring-4 ring-yellow-400' : ''} postbox-slot`}
+                    onClick={() => document.getElementById('add-file-input')?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                >
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-48 h-3 bg-black/40 rounded-full shadow-inner" />
+                    <div className="flex items-center gap-2 text-white/90 mt-4">
+                        <Mail size={24} /> <span className="font-bold text-xl font-serif tracking-widest text-engraved">{t('postMore')}</span>
                     </div>
+                    <div className="text-white/60 text-xs uppercase tracking-wider mt-1">{t('dropAdditional')}</div>
+                    <input id="add-file-input" type="file" multiple className="hidden" onChange={(e) => e.target.files && e.target.files.length > 0 && onAddFile(Array.from(e.target.files))} />
+                </div>
 
-                    {/* Status Display (for active file) */}
-                    {senderStats.isTransferring && (
-                        <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-100 sticky bottom-0">
-                            <div className="space-y-4">
-                                <div className="flex justify-between text-sm font-bold">
-                                    <span className="text-[#d40000]">Sending...</span>
-                                    <span className="text-gray-400">ETA: {senderStats.eta}</span>
+                {/* Ad Slot */}
+                <AdSlot variant="sidebar" />
+            </div>
+
+            <div className="space-y-6">
+                <h3 className="font-serif text-2xl font-bold text-[var(--theme-dark)] pl-2 mb-4 border-b-2 border-[var(--theme-light)] pb-2">{t('lettersToSend')} ({hostedFiles.length})</h3>
+
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {hostedFiles.map((file, idx) => (
+                        <div key={file.id} className="bg-white p-4 rounded-sm shadow-sm border border-gray-200 paper-texture relative transform hover:-translate-y-1 transition-transform cursor-default">
+                            <div className="absolute top-2 right-2 opacity-20">
+                                <Mail size={40} className="text-[var(--theme-dark)]" />
+                            </div>
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className="w-10 h-10 bg-[var(--theme-lighter)] rounded-full flex items-center justify-center text-[var(--theme-dark)] font-bold font-mono border border-[var(--theme-light)]">
+                                    {idx + 1}
                                 </div>
-                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#d40000] transition-all duration-300 ease-out" style={{ width: `${senderStats.progress}%` }} />
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-gray-900 truncate font-serif">{file.file.name}</h4>
+                                    <p className="text-xs text-gray-500 font-mono">{(file.file.size / 1024 / 1024).toFixed(1)} MB</p>
                                 </div>
-                                <div className="text-right text-[#d40000] font-bold text-sm">{senderStats.speed}</div>
                             </div>
                         </div>
-                    )}
+                    ))}
                 </div>
+
+                {/* Status Display (for active file) */}
+                {senderStats.isTransferring && (
+                    <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-100 sticky bottom-0">
+                        <div className="space-y-4">
+                            <div className="flex justify-between text-sm font-bold">
+                                <span className="text-[var(--theme-primary)]">Sending...</span>
+                                <span className="text-gray-400">ETA: {senderStats.eta}</span>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-[var(--theme-primary)] transition-all duration-300 ease-out" style={{ width: `${senderStats.progress}%` }} />
+                            </div>
+                            <div className="text-right text-[var(--theme-primary)] font-bold text-sm">{senderStats.speed}</div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1301,15 +1431,15 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
     return (
         <div className="h-screen flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-gradient-to-br from-red-100 to-transparent rounded-full blur-3xl opacity-40" />
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-gradient-to-br from-[var(--theme-light)] to-transparent rounded-full blur-3xl opacity-40" />
             </div>
 
             <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
                 <div className="mb-8 text-center">
-                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-md border-4 border-white">
-                        <Mail size={32} className="text-[#8b0000]" />
+                    <div className="w-20 h-20 bg-[var(--theme-lighter)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-md border-4 border-white">
+                        <Mail size={32} className="text-[var(--theme-dark)]" />
                     </div>
-                    <h2 className="text-3xl font-black text-[#8b0000] mb-2 font-serif tracking-tight">YOU HAVE MAIL</h2>
+                    <h2 className="text-3xl font-black text-[var(--theme-dark)] mb-2 font-serif tracking-tight">YOU HAVE MAIL</h2>
                     <p className="text-gray-500 font-mono">From Post ID: {inputKey}</p>
                 </div>
 
@@ -1333,14 +1463,14 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                         <div key={file.id} className="envelope-card p-6 paper-texture flex flex-col justify-between h-48 transform hover:scale-105 transition-transform duration-200">
                             <div>
                                 <div className="flex justify-between items-start mb-2">
-                                    <div className="w-8 h-10 border-2 border-red-200 bg-red-50 flex items-center justify-center">
-                                        <span className="text-[10px] text-red-300 font-bold transform -rotate-90">STAMP</span>
+                                    <div className="w-8 h-10 border-2 border-[var(--theme-subtle)] bg-[var(--theme-lighter)] flex items-center justify-center">
+                                        <span className="text-[10px] text-[var(--theme-subtle)] font-bold transform -rotate-90">STAMP</span>
                                     </div>
                                     {activeFile?.id === file.id && status === 'connected' && (
-                                        <div className="text-xs font-bold text-[#d40000] animate-pulse">Downloading...</div>
+                                        <div className="text-xs font-bold text-[var(--theme-primary)] animate-pulse">Downloading...</div>
                                     )}
                                     {status === 'waiting_for_save' && activeFile?.id === file.id && (
-                                        <div className="text-red-600 font-bold border-2 border-red-600 px-2 py-0.5 text-xs rounded-sm rotate-12 opacity-80">DONE</div>
+                                        <div className="text-[var(--theme-primary)] font-bold border-2 border-red-600 px-2 py-0.5 text-xs rounded-sm rotate-12 opacity-80">DONE</div>
                                     )}
                                 </div>
                                 <h3 className="font-bold text-gray-900 truncate font-serif text-lg leading-tight mb-1">{file.name}</h3>
@@ -1351,7 +1481,7 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                                 onClick={() => onStartDownload(file)}
                                 disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
                                 className={`w-full mt-4 py-2 rounded-md font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 border-t-2 border-gray-100
-                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'bg-[#d40000] text-white hover:bg-[#b30000]'}
+                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'bg-[var(--theme-primary)] text-white hover:bg-[var(--theme-hover)]'}
                                 `}
                             >
                                 {activeFile?.id === file.id ? (status === 'connected' ? 'In Transit...' : 'Opening...') : 'Open Letter'}
@@ -1364,10 +1494,10 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                     <div className="mt-8 w-full max-w-md bg-white rounded-xl p-6 shadow-xl border border-gray-100">
                         <h4 className="font-bold text-gray-900 mb-2 truncate">Downloading: {activeFile.name}</h4>
                         <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-2">
-                            <div className="h-full bg-[#d40000] transition-all duration-200 ease-linear shadow-[0_0_10px_rgba(212,0,0,0.5)]" style={{ width: `${progress}%` }} />
+                            <div className="h-full bg-[var(--theme-primary)] transition-all duration-200 ease-linear shadow-[0_0_10px_rgba(212,0,0,0.5)]" style={{ width: `${progress}%` }} />
                         </div>
                         <div className="flex justify-between items-end">
-                            <div className="text-[#d40000] font-bold">{speed}</div>
+                            <div className="text-[var(--theme-primary)] font-bold">{speed}</div>
                             <div className="text-xs text-gray-400">{activeStreams} streams</div>
                         </div>
                     </div>
@@ -1377,7 +1507,7 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
             {error && (
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
                     <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100 text-center space-y-4">
-                        <ShieldAlert className="w-12 h-12 text-red-500 mx-auto" />
+                        <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
                         <h3 className="text-xl font-bold">Error</h3>
                         <p className="text-gray-600">{error}</p>
                         {error !== "宛名が見つかりませんでした" && (
