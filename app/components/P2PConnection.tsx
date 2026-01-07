@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     Copy, CheckCircle2, FileIcon, Download, Upload, XCircle, Loader2, HardDrive, Zap,
     CalendarClock, KeyRound, ArrowRight, Terminal, Share2, Mail, Twitter, ShieldAlert,
-    QrCode, Users, Play, Plus
+    QrCode, Users, Play, Plus, BookOpen
 } from 'lucide-react';
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -15,7 +15,7 @@ const PARALLEL_STREAMS = 5; // Use multiple streams
 const MAX_BUFFERED_AMOUNT = 16 * 1024 * 1024; // 16MB limit
 const BUFFER_THRESHOLD = 64 * 1024; // 64KB threshold
 const PROTOCOL_VERSION = 'kizuna-v1'; // Handshake token
-const APP_VERSION = "v3.1.0 (Multi-File)";
+const APP_VERSION = "v3.2.0 (Batch & Post)";
 const ID_PREFIX = 'kizuna-transfer-v2-';
 
 const ATTACK_THRESHOLD = 5; // Max failures allowed
@@ -430,6 +430,43 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         }
     };
 
+    // Batch Download (Sequential for safety)
+    const downloadAll = async () => {
+        if (incomingFiles.length === 0) return;
+
+        let dirHandle: any = null;
+        try {
+            // @ts-ignore
+            dirHandle = await window.showDirectoryPicker();
+        } catch (e) { return; } // Cancelled
+
+        if (!dirHandle) return;
+
+        alert("Starting batch download. Please keep this tab open.");
+
+        for (const file of incomingFiles) {
+            try {
+                const fileHandle = await dirHandle.getFileHandle(file.name, { create: true });
+                await startDownload(file, fileHandle);
+
+                // Wait for finish before next (Polling state)
+                await new Promise<void>((resolve) => {
+                    const check = setInterval(() => {
+                        if (status === 'waiting_for_save') {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 500);
+                });
+
+            } catch (err) {
+                console.error(`Failed to download ${file.name}`, err);
+            }
+        }
+        alert("All files downloaded!");
+    };
+
+
     // 3. Data Handler (with Security)
     const handleData = useCallback(async (data: any, remotePeerId: string, conn?: DataConnection) => {
         if (data && data.type !== 'chunk') {
@@ -536,7 +573,7 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 setResumeHandle(null); // Clear resume handle
                 await clearTransferState(); // Clear DB
                 releaseWakeLock();
-                alert("Download Complete!");
+                // We rely on UI to show completion
             }
             else if (data.type === 'request_file') {
                 const requestedId = data.fileId;
@@ -571,6 +608,10 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
 
     const connectToPeer = useCallback((key: string) => {
         if (!peerRef.current) return;
+
+        // Reset old errors
+        setError(null);
+
         if (isCaptchaActive) {
             setError('Please solve the captcha first.');
             return;
@@ -610,9 +651,14 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
         setTimeout(() => {
             if (connectionsRef.current.every(c => !c.open) && status !== 'waiting_for_save') {
                 addLog("Connection timeout.");
-                setError("Peer unavailable");
+
+                // --- CUSTOM USER ERROR: Address not found ---
+                setError("宛名が見つかりませんでした");
                 setInputKey('');
-                window.location.href = '/';
+                setTimeout(() => {
+                    setError(null);
+                    setStatus('initializing'); // Or whatever initial state is appropriate
+                }, 1000);
             }
         }, 5000);
     }, [addLog, handleData, isCaptchaActive, status]);
@@ -677,8 +723,13 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                 } else if (err.type === 'peer-unavailable') {
                     failedAttemptsRef.current += 1;
                     setInputKey('');
-                    setError("Peer not found.");
-                    window.location.href = '/';
+
+                    // --- CUSTOM USER ERROR: Address not found ---
+                    setError("宛名が見つかりませんでした");
+                    setTimeout(() => setError(null), 1000);
+
+                    // Optional: Don't hard reload, just let error show
+                    // window.location.href = '/'; 
                 } else if (err.type === 'network') {
                     setError("Network error. Retrying...");
                 }
@@ -774,6 +825,7 @@ export default function P2PConnection({ initialKey }: { initialKey?: string }) {
                         activeStreams={activeStreamCount}
                         error={error}
                         onStartDownload={(file) => startDownload(file, resumeHandle)}
+                        onDownloadAll={downloadAll}
                         countdown={countdown}
                         inputKey={inputKey}
                         isResume={!!resumeHandle}
@@ -1006,12 +1058,14 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
                                 <p className="text-gray-600 font-medium">{error}</p>
-                                <button
-                                    onClick={() => window.location.reload()}
-                                    className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
-                                >
-                                    Retry
-                                </button>
+                                {error !== "宛名が見つかりませんでした" && (
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
+                                    >
+                                        Retry
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -1157,12 +1211,13 @@ interface ReceiverViewProps {
     activeStreams: number;
     error: string | null;
     onStartDownload: (file: IncomingFileMeta) => void;
+    onDownloadAll?: () => void;
     countdown: string;
     inputKey: string;
     isResume?: boolean;
 }
 
-function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, countdown, inputKey, isResume }: ReceiverViewProps) {
+function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume }: ReceiverViewProps) {
     return (
         <div className="h-screen flex flex-col items-center justify-center bg-white p-6 relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
@@ -1178,7 +1233,17 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                     <p className="text-gray-500 font-mono">From Post ID: {inputKey}</p>
                 </div>
 
-                <div className="w-full grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[60vh] overflow-y-auto p-4">
+                {/* Download All Button */}
+                {files.length > 1 && onDownloadAll && (
+                    <button
+                        onClick={onDownloadAll}
+                        className="mb-8 bg-gray-900 text-white px-8 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-transform"
+                    >
+                        <BookOpen size={20} /> Collect All Letters
+                    </button>
+                )}
+
+                <div className="w-full grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[50vh] overflow-y-auto p-4">
                     {files.map((file) => (
                         <div key={file.id} className="envelope-card p-6 paper-texture flex flex-col justify-between h-48 transform hover:scale-105 transition-transform duration-200">
                             <div>
@@ -1230,7 +1295,9 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                         <ShieldAlert className="w-12 h-12 text-red-500 mx-auto" />
                         <h3 className="text-xl font-bold">Error</h3>
                         <p className="text-gray-600">{error}</p>
-                        <button onClick={() => window.location.reload()} className="bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black">Reload</button>
+                        {error !== "宛名が見つかりませんでした" && (
+                            <button onClick={() => window.location.reload()} className="bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black">Reload</button>
+                        )}
                     </div>
                 </div>
             )}
