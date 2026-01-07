@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
+import AdSlot from './AdSlot';
 
 // --- Constants ---
 const CHUNK_SIZE = 64 * 1024; // 64KB Optimized for Speed
@@ -1172,6 +1173,9 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         <div className="text-white/60 text-xs uppercase tracking-wider mt-1">Drop additional letters here</div>
                         <input id="add-file-input" type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onAddFile(e.target.files[0])} />
                     </div>
+
+                    {/* Ad Slot */}
+                    <AdSlot variant="sidebar" />
                 </div>
 
                 <div className="space-y-6">
@@ -1246,6 +1250,11 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                     </div>
                     <h2 className="text-3xl font-black text-[#8b0000] mb-2 font-serif tracking-tight">YOU HAVE MAIL</h2>
                     <p className="text-gray-500 font-mono">From Post ID: {inputKey}</p>
+                </div>
+
+                {/* Ad Slot */}
+                <div className="w-full mb-8">
+                    <AdSlot variant="banner" />
                 </div>
 
                 {/* Download All Button */}
