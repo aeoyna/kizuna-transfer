@@ -976,15 +976,28 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                     </div>
 
                     <div className="w-full space-y-6">
-                        <div className="flex justify-between gap-2">
-                            {[0, 1, 2, 3, 4, 5].map((i) => (
-                                <div
-                                    key={i}
-                                    className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
-                                >
-                                    {inputKey[i] || ''}
-                                </div>
-                            ))}
+                        <div className="flex items-center justify-center gap-4">
+                            <div className="flex gap-2">
+                                {[0, 1, 2].map((i) => (
+                                    <div
+                                        key={i}
+                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
+                                    >
+                                        {inputKey[i] || ''}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="text-2xl font-bold text-gray-300">-</div>
+                            <div className="flex gap-2">
+                                {[3, 4, 5].map((i) => (
+                                    <div
+                                        key={i}
+                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#d40000] scale-105' : 'border-gray-200'} ${inputKey[i] ? 'text-red-900 border-red-900' : 'text-gray-300'}`}
+                                    >
+                                        {inputKey[i] || ''}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-3 gap-3">
@@ -1124,7 +1137,9 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         </div>
                         <div className="text-center mb-8 mt-6">
                             <div className="text-xs text-gray-400 uppercase tracking-widest mb-1">Postal Code</div>
-                            <h1 className="text-6xl font-serif font-bold tracking-widest text-[#8b0000] mb-2 font-mono">{mainFile.transferKey}</h1>
+                            <h1 className="text-6xl font-serif font-bold tracking-widest text-[#8b0000] mb-2 font-mono">
+                                {mainFile.transferKey.slice(0, 3)}-{mainFile.transferKey.slice(3)}
+                            </h1>
                         </div>
                         <div className="aspect-square bg-white p-2 border-4 border-double border-gray-200 mb-6 mx-auto w-48 relative">
                             <div className="absolute -top-3 -left-3 text-gray-300 transform -rotate-45">
