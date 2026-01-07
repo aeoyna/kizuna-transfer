@@ -1036,7 +1036,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
     };
 
     return (
-        <div className="h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-white text-black">
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-white text-black py-20">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-gradient-to-br from-[var(--theme-light)] to-transparent rounded-full blur-3xl opacity-30" />
                 <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-gradient-to-bl from-red-200 to-transparent rounded-full blur-3xl opacity-30" />
@@ -1170,6 +1170,66 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                     <ArrowRight className="rotate-180" size={16} />
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* P2P Explanation Section */}
+                <div className="w-full max-w-4xl bg-white/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-100 shadow-sm mt-12 mb-8">
+                    <h4 className="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
+                        <Share2 size={20} className="text-[var(--theme-primary)]" />
+                        {t('p2pTitle')}
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-8 leading-relaxed text-center max-w-2xl mx-auto">
+                        {t('p2pDesc')}
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                            <h5 className="font-bold text-xs uppercase tracking-wider text-[var(--theme-primary)] mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-[var(--theme-primary)]" />
+                                {t('p2pMerits')}
+                            </h5>
+                            <ul className="space-y-3">
+                                <li className="flex items-start gap-3 text-sm text-gray-700">
+                                    <div className="min-w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                                        <CheckCircle2 size={12} className="text-green-600" />
+                                    </div>
+                                    <span className="font-medium">{t('merit1')}</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-sm text-gray-700">
+                                    <div className="min-w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                                        <CheckCircle2 size={12} className="text-green-600" />
+                                    </div>
+                                    <span className="font-medium">{t('merit2')}</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-sm text-gray-700">
+                                    <div className="min-w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                                        <CheckCircle2 size={12} className="text-green-600" />
+                                    </div>
+                                    <span className="font-medium">{t('merit3')}</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                            <h5 className="font-bold text-xs uppercase tracking-wider text-orange-500 mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-orange-500" />
+                                {t('p2pDemerits')}
+                            </h5>
+                            <ul className="space-y-3">
+                                <li className="flex items-start gap-3 text-sm text-gray-700">
+                                    <div className="min-w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center mt-0.5">
+                                        <ShieldAlert size={12} className="text-orange-500" />
+                                    </div>
+                                    <span className="font-medium">{t('demerit1')}</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-sm text-gray-700">
+                                    <div className="min-w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center mt-0.5">
+                                        <ShieldAlert size={12} className="text-orange-500" />
+                                    </div>
+                                    <span className="font-medium">{t('demerit2')}</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>

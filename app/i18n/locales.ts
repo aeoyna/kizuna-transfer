@@ -40,7 +40,16 @@ export const translations = {
         supportDev: "Support Development",
         adDesc: "Check out our premium features and support layout.",
         learnMore: "Learn More",
-        contactUs: "Contact Us"
+        contactUs: "Contact Us",
+        p2pTitle: "Why kizuna-transfer?",
+        p2pDesc: "We use P2P technology to connect devices directly, just like ToffeeShare.",
+        p2pMerits: "Advantages",
+        merit1: "No File Size Limit - Send huge files instantly.",
+        merit2: "End-to-End Privacy - Files never touch our servers.",
+        merit3: "Blazing Fast - Direct transfer speed.",
+        p2pDemerits: "Keep in Mind",
+        demerit1: "Keep This Tab Open - Or transfer will stop.",
+        demerit2: "Network Restrictions - Firewall may block connection."
     },
     ja: {
         sendFiles: "ファイルを送る",
@@ -81,7 +90,16 @@ export const translations = {
         supportDev: "開発を支援",
         adDesc: "プレミアム機能やレイアウトのサポートをご覧ください。",
         learnMore: "詳細を見る",
-        contactUs: "お問い合わせ"
+        contactUs: "お問い合わせ",
+        p2pTitle: "Kizuna Transferの仕組み",
+        p2pDesc: "ToffeeShareのように、デバイス同士をP2Pで直接つなぎます。",
+        p2pMerits: "メリット",
+        merit1: "ファイルサイズ無制限 - ギガバイト単位もOK。",
+        merit2: "完全なプライバシー - サーバーにデータは残りません。",
+        merit3: "超高速転送 - 回線速度の限界まで出せます。",
+        p2pDemerits: "注意点",
+        demerit1: "タブを閉じないで - 転送中はページを開いたままに。",
+        demerit2: "ネットワーク制限 - 会社のWiFi等では繋がらない場合があります。"
     },
     zh: {
         sendFiles: "发送文件",
@@ -122,7 +140,16 @@ export const translations = {
         supportDev: "支持开发",
         adDesc: "查看我们的高级功能和支持布局。",
         learnMore: "了解更多",
-        contactUs: "联系我们"
+        contactUs: "联系我们",
+        p2pTitle: "关于P2P传输",
+        p2pDesc: "像ToffeeShare一样，使用P2P技术直接连接设备。",
+        p2pMerits: "优势",
+        merit1: "无文件大小限制 - 随意发送大文件。",
+        merit2: "端到端隐私 - 文件不保存在服务器上。",
+        merit3: "极速传输 - 点对点直接互传。",
+        p2pDemerits: "注意事项",
+        demerit1: "保持页面开启 - 关闭标签页将停止传输。",
+        demerit2: "网络限制 - 防火墙可能会阻止连接。"
     },
     ko: {
         sendFiles: "파일 보내기",
@@ -163,6 +190,15 @@ export const translations = {
         supportDev: "개발 지원",
         adDesc: "프리미엄 기능 및 레이아웃 지원을 확인하세요.",
         learnMore: "자세히 보기",
-        contactUs: "문의하기"
+        contactUs: "문의하기",
+        p2pTitle: "P2P 전송이란?",
+        p2pDesc: "ToffeeShare와 같이 장치를 직접 연결하는 P2P 기술을 사용합니다.",
+        p2pMerits: "장점",
+        merit1: "용량 제한 없음 - 대용량 파일도 즉시 전송.",
+        merit2: "완벽한 프라이버시 - 서버에 파일이 저장되지 않습니다.",
+        merit3: "초고속 전송 - 직접 연결로 가장 빠른 속도.",
+        p2pDemerits: "주의사항",
+        demerit1: "탭을 닫지 마세요 - 전송 중에는 페이지를 유지해야 합니다.",
+        demerit2: "네트워크 제한 - 방화벽 등으로 연결이 차단될 수 있습니다."
     }
 };
