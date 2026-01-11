@@ -1131,18 +1131,18 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                 {[0, 1, 2].map((i) => (
                                     <div
                                         key={i}
-                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[var(--mac-accent)] scale-105 shadow-md' : 'border-gray-200'} ${inputKey[i] ? 'text-[var(--mac-text)] border-[var(--mac-accent)]' : 'text-gray-300'}`}
+                                        className={`w-10 h-14 border-2 rounded-md flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#cc0000] ring-4 ring-red-50 scale-105 z-10' : 'border-red-200'} ${inputKey[i] ? 'text-gray-900 border-[#cc0000]' : 'text-gray-300'}`}
                                     >
                                         {inputKey[i] || ''}
                                     </div>
                                 ))}
                             </div>
-                            <div className="text-2xl font-bold text-gray-300">-</div>
+                            <div className="text-2xl font-bold text-red-300">-</div>
                             <div className="flex gap-1">
                                 {[3, 4, 5].map((i) => (
                                     <div
                                         key={i}
-                                        className={`w-10 h-14 border-2 rounded-lg flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[var(--mac-accent)] scale-105 shadow-md' : 'border-gray-200'} ${inputKey[i] ? 'text-[var(--mac-text)] border-[var(--mac-accent)]' : 'text-gray-300'}`}
+                                        className={`w-10 h-14 border-2 rounded-md flex items-center justify-center text-2xl font-bold bg-white transition-all duration-200 ${inputKey.length === i ? 'border-[#cc0000] ring-4 ring-red-50 scale-105 z-10' : 'border-red-200'} ${inputKey[i] ? 'text-gray-900 border-[#cc0000]' : 'text-gray-300'}`}
                                     >
                                         {inputKey[i] || ''}
                                     </div>
