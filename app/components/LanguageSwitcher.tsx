@@ -12,6 +12,7 @@ export default function LanguageSwitcher() {
         { code: 'ja', label: '日本語', flag: '🇯🇵' },
         { code: 'zh', label: '中文', flag: '🇨🇳' },
         { code: 'ko', label: '한국어', flag: '🇰🇷' },
+        { code: 'ain', label: 'アイヌ語', flag: '🐻' },
     ];
 
     return (
