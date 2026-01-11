@@ -1055,14 +1055,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
         if (files.length > 0) onFileSelect(files);
     };
 
-    const getThemeClass = (lang: string) => {
-        switch (lang) {
-            case 'en': return 'theme-en';
-            case 'zh': return 'theme-zh';
-            case 'ko': return 'theme-ko';
-            default: return ''; // Default is JP/Red
-        }
-    };
+
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[var(--mac-bg)] text-[var(--mac-text)]">
@@ -1081,7 +1074,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
                 {/* Send Card (The Realistic Postbox) */}
                 <div
-                    className={`ios-postbox ${getThemeClass(language)} w-full max-w-sm aspect-[4/5] pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-300 cursor-pointer ${isDragging ? 'scale-105 ring-4 ring-yellow-400' : 'hover:translate-y-[-4px] hover:shadow-2xl'}`}
+                    className={`ios-postbox w-full max-w-sm aspect-[4/5] pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-300 cursor-pointer ${isDragging ? 'scale-105 ring-4 ring-yellow-400' : 'hover:translate-y-[-4px] hover:shadow-2xl'}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
