@@ -39,7 +39,7 @@ interface IncomingFileMeta {
     size: number;
     peerId: string;
     id: string; // Unique ID from sender
-    requiresPassword?: boolean;
+    password?: string; // Optional password protection
 }
 
 interface TransferState {
@@ -234,14 +234,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [captcha, setCaptcha] = useState({ q: '', a: '' });
     const failedAttemptsRef = useRef(0);
 
-    // Password Protection
-    const [isPasswordProtected, setIsPasswordProtected] = useState(false);
-    const [transferPassword, setTransferPassword] = useState('');
-
-    // Receiver Password Input
-    const [receiverPasswordInput, setReceiverPasswordInput] = useState('');
-    const [passwordError, setPasswordError] = useState(false);
-
     // Logs
     const [logs, setLogs] = useState<string[]>([]);
 
@@ -261,15 +253,23 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [isLocked, setIsLocked] = useState(false);
     const isLockedRef = useRef(false); // Ref for immediate access in callbacks
 
+    // Password Protection
+    const [usePassword, setUsePassword] = useState(false);
+    const [transferPassword, setTransferPassword] = useState<string>('');
+
+    // Generate 8-char alphanumeric password
+    const generatePassword = useCallback(() => {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }, []);
+
     useEffect(() => {
         isLockedRef.current = isLocked;
     }, [isLocked]);
-
-    // Password Ref for callbacks
-    const transferPasswordRef = useRef('');
-    useEffect(() => {
-        transferPasswordRef.current = transferPassword;
-    }, [transferPassword]);
 
     // --- Helpers ---
 
@@ -486,7 +486,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     };
 
     // 2. Download/Receive Logic
-    const startDownload = async (fileMeta: IncomingFileMeta, fileHandle?: FileSystemFileHandle, password?: string) => {
+    const startDownload = async (fileMeta: IncomingFileMeta, fileHandle?: FileSystemFileHandle) => {
         if (!fileMeta) return;
 
         if (!fileHandle) {
@@ -545,11 +545,11 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         const activeConn = connectionsRef.current.find(c => c.open && c.peer === fileMeta.peerId);
         if (activeConn) {
             // Request specific file by ID
-            activeConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize, password: password || '' });
+            activeConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize });
         } else {
             // Queue via first available (fallback)
             const anyConn = connectionsRef.current[0];
-            if (anyConn) anyConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize, password: password || '' });
+            if (anyConn) anyConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize });
         }
     };
 
@@ -617,13 +617,11 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         try {
             if (data.type === 'metadata_list') {
                 // Multi-file support: Receive list of files
-                const requiresPwd = data.requiresPassword || false;
                 const files: IncomingFileMeta[] = data.files.map((f: any) => ({
                     name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
                     size: f.fileSize,
                     peerId: remotePeerId,
-                    id: f.id,
-                    requiresPassword: requiresPwd
+                    id: f.id
                 }));
 
                 setIncomingFiles(files);
@@ -642,8 +640,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     activeConn.send({
                         type: 'metadata_list',
                         files: filesMeta,
-                        peerId: myId,
-                        requiresPassword: !!transferPasswordRef.current
+                        peerId: myId
                     });
                 }
             }
@@ -705,18 +702,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 const requestedId = data.fileId;
                 const fileObj = hostedFilesRef.current.find(f => f.id === requestedId) || hostedFilesRef.current[0];
 
-                // Password Validation
-                if (transferPasswordRef.current) {
-                    if (data.password !== transferPasswordRef.current) {
-                        addLog(`Security: Rejected request (Wrong Password) from ${remotePeerId}`);
-                        const activeConn = connectionsRef.current.find(c => c.open && c.peer === remotePeerId);
-                        if (activeConn) {
-                            activeConn.send({ type: 'password_error' });
-                        }
-                        return;
-                    }
-                }
-
                 if (fileObj) {
                     const targetConns = connectionsRef.current.filter(c => c.open && c.peer === remotePeerId);
                     // Support Offset for Resume
@@ -724,11 +709,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     if (offset > 0) addLog(`Peer requested resume from ${offset} bytes`);
                     sendFileParallel(fileObj.file, targetConns, offset, remotePeerId);
                 }
-            }
-            else if (data.type === 'password_error') {
-                addLog(`Password rejected by sender`);
-                setPasswordError(true);
-                setStatus('waiting_for_save');
             }
         } catch (err) {
             console.error(err);
@@ -929,33 +909,25 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Password Generator
-    const generatePassword = (): string => {
-        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let password = '';
-        for (let i = 0; i < 8; i++) {
-            password += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return password;
-    };
-
     // File Handle
-    const handleFileSelect = async (files: File[]) => {
+    const handleFileSelect = async (files: File[], enablePassword?: boolean) => {
         if (files.length === 0) return;
+
+        // Generate password if requested
+        if (enablePassword) {
+            const newPassword = generatePassword();
+            setTransferPassword(newPassword);
+            setUsePassword(true);
+            addLog(`Password protection enabled: ${newPassword}`);
+        } else {
+            setTransferPassword('');
+            setUsePassword(false);
+        }
 
         const baseUrl = window.location.origin;
         // Always generate a new key when files are added
         const newKey = Math.floor(100000 + Math.random() * 900000).toString();
         await initPeer(0, newKey);
-
-        // Generate password if enabled
-        if (isPasswordProtected) {
-            const newPassword = generatePassword();
-            setTransferPassword(newPassword);
-            addLog(`Password protection enabled. Password: ${newPassword}`);
-        } else {
-            setTransferPassword('');
-        }
 
         const shareUrl = `${baseUrl}/${newKey}`;
 
@@ -1011,22 +983,18 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         speed={transferSpeed}
                         activeStreams={activeStreamCount}
                         error={error}
-                        onStartDownload={(file, password) => startDownload(file, resumeHandle, password)}
+                        onStartDownload={(file) => startDownload(file, resumeHandle)}
                         onDownloadAll={downloadAll}
                         countdown={countdown}
                         inputKey={inputKey}
                         isResume={!!resumeHandle}
-                        receiverPasswordInput={receiverPasswordInput}
-                        setReceiverPasswordInput={setReceiverPasswordInput}
-                        passwordError={passwordError}
-                        setPasswordError={setPasswordError}
                     />
                 ) : hostedFiles.length > 0 ? (
                     <SenderView
                         hostedFiles={hostedFiles}
                         activeStreams={activeStreamCount}
                         onSchedule={updateSchedule}
-                        onAddFile={handleFileSelect}
+                        onAddFile={(files) => handleFileSelect(files, usePassword)}
                         senderStats={senderStats}
                         peerDiffs={peerDiffs}
                         onStopPeer={(peerId: string) => {
@@ -1037,7 +1005,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         }}
                         isLocked={isLocked}
                         onToggleLock={() => setIsLocked(!isLocked)}
-                        transferPassword={transferPassword}
+                        password={transferPassword}
                     />
                 ) : (
                     <InitialView
@@ -1049,8 +1017,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         isCaptchaActive={isCaptchaActive}
                         captcha={captcha}
                         onCaptchaVerify={handleCaptchaVerify}
-                        isPasswordProtected={isPasswordProtected}
-                        setIsPasswordProtected={setIsPasswordProtected}
                     />
                 )}
             </div>
@@ -1094,7 +1060,7 @@ function LogViewer({ logs }: { logs: string[] }) {
 }
 
 interface InitialViewProps {
-    onFileSelect: (files: File[]) => void;
+    onFileSelect: (files: File[], enablePassword?: boolean) => void;
     onJoin: (key: string) => void;
     inputKey: string;
     setInputKey: (key: string) => void;
@@ -1102,20 +1068,19 @@ interface InitialViewProps {
     isCaptchaActive: boolean;
     captcha: { q: string; a: string };
     onCaptchaVerify: (a: string) => void;
-    isPasswordProtected: boolean;
-    setIsPasswordProtected: (v: boolean) => void;
 }
 
-function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify, isPasswordProtected, setIsPasswordProtected }: InitialViewProps) {
+function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify }: InitialViewProps) {
     const { t, language } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
+    const [enablePassword, setEnablePassword] = useState(false);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
         const files = Array.from(e.dataTransfer.files);
-        if (files.length > 0) onFileSelect(files);
+        if (files.length > 0) onFileSelect(files, enablePassword);
     };
 
 
@@ -1172,16 +1137,18 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                             </span>
                         </div>
 
-                        {/* Password Protection Checkbox */}
-                        <label className="flex items-center gap-2 mt-4 cursor-pointer select-none">
+                        {/* Password Checkbox */}
+                        <label className="flex items-center gap-3 cursor-pointer mt-2 mb-4 p-3 bg-white/50 rounded-xl border border-gray-100 hover:bg-white/80 transition-colors">
                             <input
                                 type="checkbox"
-                                checked={isPasswordProtected}
-                                onChange={(e) => setIsPasswordProtected(e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-300 text-[#ff6b6b] focus:ring-[#ff6b6b]"
+                                checked={enablePassword}
+                                onChange={(e) => setEnablePassword(e.target.checked)}
+                                className="w-5 h-5 rounded border-gray-300 text-[#ff6b6b] focus:ring-[#ff6b6b]"
                             />
-                            <Lock size={14} className="text-gray-500" />
-                            <span className="text-sm text-gray-600">{t('setPassword')}</span>
+                            <div>
+                                <span className="text-sm font-medium text-gray-700">🔐 パスワードを設定</span>
+                                <p className="text-xs text-gray-500">受取人にパスワード入力を求めます</p>
+                            </div>
                         </label>
                     </div>
 
@@ -1190,7 +1157,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         type="file"
                         className="hidden"
                         multiple
-                        onChange={(e) => e.target.files && e.target.files.length > 0 && onFileSelect(Array.from(e.target.files))}
+                        onChange={(e) => e.target.files && e.target.files.length > 0 && onFileSelect(Array.from(e.target.files), enablePassword)}
                     />
                 </div>
 
@@ -1269,50 +1236,51 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                 </div>
             </div >
 
-            {(error || isCaptchaActive) && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
-                        {isCaptchaActive ? (
-                            <div className="space-y-4">
-                                <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
-                                <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
-                                <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
-                                        value={captchaInput}
-                                        onChange={(e) => setCaptchaInput(e.target.value)}
-                                        placeholder="?"
-                                    />
-                                    <button
-                                        onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
-                                        className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
-                                    >
-                                        {t('verify')}
-                                    </button>
+            {
+                (error || isCaptchaActive) && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
+                        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
+                            {isCaptchaActive ? (
+                                <div className="space-y-4">
+                                    <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
+                                    <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
+                                    <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
+                                            value={captchaInput}
+                                            onChange={(e) => setCaptchaInput(e.target.value)}
+                                            placeholder="?"
+                                        />
+                                        <button
+                                            onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
+                                            className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
+                                        >
+                                            {t('verify')}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="text-center space-y-4">
-                                <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
-                                    <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
+                            ) : (
+                                <div className="text-center space-y-4">
+                                    <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
+                                        <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
+                                    <p className="text-gray-600 font-medium">{error}</p>
+                                    {error !== t('addressNotFound') && (
+                                        <button
+                                            onClick={() => window.location.reload()}
+                                            className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
+                                        >
+                                            {t('retry')}
+                                        </button>
+                                    )}
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
-                                <p className="text-gray-600 font-medium">{error}</p>
-                                {error !== t('addressNotFound') && (
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
-                                    >
-                                        {t('retry')}
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
-            )
+                )
             }
 
             {/* P2P Explanation Section - At Bottom */}
@@ -1388,10 +1356,10 @@ interface SenderViewProps {
     onStopPeer: (peerId: string) => void;
     isLocked: boolean;
     onToggleLock: () => void;
-    transferPassword: string;
+    password?: string;
 }
 
-function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer, isLocked, onToggleLock, transferPassword }: SenderViewProps) {
+function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer, isLocked, onToggleLock, password }: SenderViewProps) {
     const { t } = useLanguage();
     const mainFile = hostedFiles[0];
     const [isSharing, setIsSharing] = useState(false);
@@ -1459,14 +1427,10 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         <h1 className="text-5xl font-bold tracking-wider text-[var(--mac-text)] font-mono">
                             {mainFile.transferKey.slice(0, 3)}-{mainFile.transferKey.slice(3)}
                         </h1>
-                        {transferPassword && (
-                            <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
-                                <p className="text-xs text-amber-600 font-medium uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-                                    <KeyRound size={12} /> {t('password')}
-                                </p>
-                                <p className="text-2xl font-mono font-bold text-amber-700 tracking-widest">
-                                    {transferPassword}
-                                </p>
+                        {password && (
+                            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                                <p className="text-xs text-yellow-700 font-medium mb-1">🔐 パスワード</p>
+                                <p className="font-mono font-bold text-lg text-yellow-900">{password}</p>
                             </div>
                         )}
                     </div>
@@ -1553,18 +1517,14 @@ interface ReceiverViewProps {
     speed: string;
     activeStreams: number;
     error: string | null;
-    onStartDownload: (file: IncomingFileMeta, password?: string) => void;
+    onStartDownload: (file: IncomingFileMeta) => void;
     onDownloadAll?: () => void;
     countdown: string;
     inputKey: string;
     isResume?: boolean;
-    receiverPasswordInput: string;
-    setReceiverPasswordInput: (v: string) => void;
-    passwordError: boolean;
-    setPasswordError: (v: boolean) => void;
 }
 
-function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume, receiverPasswordInput, setReceiverPasswordInput, passwordError, setPasswordError }: ReceiverViewProps) {
+function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume }: ReceiverViewProps) {
     const { t } = useLanguage();
 
     return (
@@ -1619,31 +1579,11 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                                 <p className="text-xs text-[var(--mac-text-secondary)]">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
                             </div>
 
-                            {/* Password Input for protected files */}
-                            {file.requiresPassword && (
-                                <div className="mt-4 space-y-2">
-                                    <div className="flex items-center gap-2 text-amber-600 text-sm">
-                                        <KeyRound size={14} />
-                                        <span>{t('enterPassword')}</span>
-                                    </div>
-                                    <input
-                                        type="password"
-                                        value={receiverPasswordInput}
-                                        onChange={(e) => { setReceiverPasswordInput(e.target.value); setPasswordError(false); }}
-                                        placeholder="********"
-                                        className={`w-full px-4 py-2 border rounded-lg font-mono text-center tracking-widest ${passwordError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-                                    />
-                                    {passwordError && (
-                                        <p className="text-red-500 text-xs text-center">{t('wrongPassword')}</p>
-                                    )}
-                                </div>
-                            )}
-
                             <button
-                                onClick={() => onStartDownload(file, file.requiresPassword ? receiverPasswordInput : undefined)}
-                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id) || (file.requiresPassword && !receiverPasswordInput)}
+                                onClick={() => onStartDownload(file)}
+                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
                                 className={`w-full mt-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : (file.requiresPassword && !receiverPasswordInput) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'mac-button'}`}
+                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'mac-button'}`}
                             >
                                 {activeFile?.id === file.id ? (status === 'connected' ? 'Downloading...' : 'Starting...') : (
                                     <><Download size={16} /> Download</>
