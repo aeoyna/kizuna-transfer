@@ -156,7 +156,7 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-/* Decorative Top Strip (Airmail inspired) */
+/* Decorative Top Strip (Airmail Style) */
 .ios-postbox::before {
   content: '';
   position: absolute;
@@ -164,14 +164,14 @@ body {
   left: 0;
   right: 0;
   height: 6px;
-  /* Airmail stripe: Blue/White/Red/White pattern */
+  /* Airmail Red/Blue(Greenish) pattern */
   background: repeating-linear-gradient(-45deg,
-      #5ac8fa,
-      #5ac8fa 10px,
+      #ff6b6b,
+      #ff6b6b 10px,
       #ffffff 10px,
       #ffffff 20px,
-      #ff3b30 20px,
-      #ff3b30 30px,
+      #4ecdc4 20px,
+      #4ecdc4 30px,
       #ffffff 30px,
       #ffffff 40px);
   opacity: 1;
@@ -186,19 +186,17 @@ body {
 .parcel-dropzone {
   margin-top: auto;
   margin-bottom: auto;
-  /* Light blue/gray dashed border to match airmail theme */
-  border: 2px dashed #d1d5db;
+  border: 2px dashed #cbd5e1;
   border-radius: 12px;
-  background: #f9fafb;
-  /* Very subtle cool gray/blue tint */
+  background: #f8fafc;
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
 .ios-postbox:hover .parcel-dropzone {
-  border-color: #5ac8fa;
-  background: #f0f9ff;
+  border-color: #94a3b8;
+  background: #f1f5f9;
 }
 
 /* Hover State */

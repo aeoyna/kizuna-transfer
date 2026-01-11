@@ -1085,18 +1085,23 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                     <div className="relative z-20 flex flex-col items-center w-full h-full">
 
                         {/* Top Icon & Title */}
-                        <div className="mt-6 mb-4 flex flex-col items-center">
-                            <div className="w-16 h-16 bg-[#cc0000]/10 rounded-2xl flex items-center justify-center mb-4 text-[#cc0000]">
-                                <Package size={36} strokeWidth={1.5} />
+                        <div className="mt-6 flex flex-col items-center">
+                            {/* Package Icon */}
+                            <div className={`w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 text-[#ff6b6b] transition-transform duration-300 ${isDragging ? 'scale-110 rotate-3' : ''}`}>
+                                <Package size={32} strokeWidth={1.5} />
                             </div>
-                            <h2 className="text-2xl font-bold text-[var(--mac-text)] mb-1">{t('sendFiles')}</h2>
-                            <p className="text-[var(--mac-text-secondary)] text-sm px-4">Secure P2P File Transfer</p>
+
+                            <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('sendFiles')}</h2>
+                            <p className="text-gray-500 text-sm">Secure P2P File Transfer</p>
                         </div>
 
-                        {/* Explicit Dropzone */}
-                        <div className={`parcel-dropzone w-full flex-1 flex flex-col items-center justify-center p-4 border-dashed ${isDragging ? 'bg-red-50 border-red-400' : ''}`}>
-                            <div className="mb-3 text-[#cc0000] opacity-60">
-                                <UploadCloud size={40} strokeWidth={1} />
+                        {/* Dropzone */}
+                        <div
+                            className={`parcel-dropzone h-48 w-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 z-10
+                            ${isDragging ? 'scale-[1.02] border-[#ff6b6b] bg-red-50/50' : 'hover:border-gray-400'}`}
+                        >
+                            <div className={`mb-3 text-[#ff6b6b] opacity-60 transition-transform duration-300 ${isDragging ? 'scale-110 -translate-y-1' : ''}`}>
+                                <UploadCloud size={40} strokeWidth={1.5} />
                             </div>
                             <p className="text-[var(--mac-text)] font-medium text-sm mb-1">{t('clickOrDrag')}</p>
                             <span className="text-[10px] text-[var(--mac-text-secondary)] uppercase tracking-wider font-bold">
@@ -1189,7 +1194,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {(error || isCaptchaActive) && (
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
@@ -1234,7 +1239,8 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         )}
                     </div>
                 </div>
-            )}
+            )
+            }
 
             {/* P2P Explanation Section - At Bottom */}
             <div className="w-full max-w-4xl bg-white/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-100 shadow-sm mt-12 mb-8">
@@ -1295,7 +1301,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
