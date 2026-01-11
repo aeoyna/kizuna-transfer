@@ -1046,6 +1046,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         isCaptchaActive={isCaptchaActive}
                         captcha={captcha}
                         onCaptchaVerify={handleCaptchaVerify}
+                        usePassword={usePassword}
+                        onTogglePassword={togglePassword}
                     />
                 )}
             </div>
@@ -1097,9 +1099,11 @@ interface InitialViewProps {
     isCaptchaActive: boolean;
     captcha: { q: string; a: string };
     onCaptchaVerify: (a: string) => void;
+    usePassword: boolean;
+    onTogglePassword: () => void;
 }
 
-function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify }: InitialViewProps) {
+function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify, usePassword, onTogglePassword }: InitialViewProps) {
     const { t, language } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
@@ -1150,6 +1154,18 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
                             <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('sendFiles')}</h2>
                             <p className="text-gray-500 text-sm">Secure P2P File Transfer</p>
+
+                            <label className="mt-4 flex items-center justify-center gap-2 cursor-pointer group px-3 py-2 rounded-xl hover:bg-gray-100/50 transition-all select-none z-30" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                    type="checkbox"
+                                    className="w-5 h-5 rounded border-gray-300 text-[var(--mac-accent)] focus:ring-[var(--mac-accent)] cursor-pointer"
+                                    checked={usePassword}
+                                    onChange={onTogglePassword}
+                                />
+                                <span className={`font-bold text-sm transition-colors ${usePassword ? 'text-[var(--mac-accent)]' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                                    {t('enablePassword')}
+                                </span>
+                            </label>
                         </div>
 
                         {/* Dropzone */}
