@@ -8,11 +8,11 @@ export default function LanguageSwitcher() {
     const [isOpen, setIsOpen] = useState(false);
 
     const languages: { code: Locale; label: string; flag: string }[] = [
-        { code: 'en', label: 'English', flag: '🇺🇸' },
-        { code: 'ja', label: '日本語', flag: '🇯🇵' },
-        { code: 'zh', label: '中文', flag: '🇨🇳' },
-        { code: 'ko', label: '한국어', flag: '🇰🇷' },
-        { code: 'ain', label: 'アイヌ語', flag: '🐻' },
+        { code: 'en', label: 'English', flag: '🦅' }, // Eagle
+        { code: 'ja', label: '日本語', flag: '🐕' }, // Dog (Shiba/Akita)
+        { code: 'zh', label: '中文', flag: '🐼' }, // Panda
+        { code: 'ko', label: '한국어', flag: '🐯' }, // Tiger
+        { code: 'ain', label: 'アイヌ語', flag: '🐻' }, // Bear
     ];
 
     return (
