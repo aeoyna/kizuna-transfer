@@ -615,9 +615,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
 
         // Handle Errors (e.g. Password Required)
         if (data && data.type === 'error') {
-            if (data.message === 'password_required') {
-                addLog('Password required for this connection.');
-                setError('password_required'); // Trigger password modal in UI
+            if (data.message === 'password_required' || data.message === 'invalid_password') {
+                addLog('Password required/invalid for this connection.');
+                setError(data.message); // Will be 'password_required' or 'invalid_password'
             } else {
                 addLog(`Peer Error: ${data.message}`);
                 setError(data.message);
@@ -803,7 +803,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         setTimeout(() => {
-            if (errorRef.current === 'password_required') return;
+            if (errorRef.current === 'password_required' || errorRef.current === 'invalid_password') return;
 
             if (connectionsRef.current.every(c => !c.open) && status !== 'waiting_for_save') {
                 addLog("Connection timeout.");
@@ -875,8 +875,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     const meta = conn.metadata;
                     if (!meta || meta.password !== passwordRef.current) {
                         addLog(`Security: Rejected connection from ${conn.peer} (Password verification failed)`);
-                        // Send 'password_required' error code so receiver knows to prompt
-                        setTimeout(() => conn.send({ type: 'error', message: 'password_required' }), 500);
+                        // Send 'password_required' or 'invalid_password' error code
+                        // @ts-ignore
+                        const msg = meta && meta.password ? 'invalid_password' : 'password_required';
+                        setTimeout(() => conn.send({ type: 'error', message: msg }), 500);
                         setTimeout(() => conn.close(), 1000);
                         return;
                     }
@@ -899,7 +901,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     initPeer(retryCount + 1);
                 } else if (err.type === 'peer-unavailable') {
                     // Ignore if we are prompting for password
-                    if (errorRef.current === 'password_required') return;
+                    if (errorRef.current === 'password_required' || errorRef.current === 'invalid_password') return;
 
                     failedAttemptsRef.current += 1;
                     setInputKey('');
@@ -1304,13 +1306,15 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                     </button>
                                 </div>
                             </div>
-                        ) : error === 'password_required' ? (
+                        ) : error === 'password_required' || error === 'invalid_password' ? (
                             // Password Input Modal
                             <div className="space-y-4">
                                 <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
                                     <Lock className="w-8 h-8 text-yellow-600" />
                                 </div>
-                                <h3 className="text-xl font-bold text-center text-gray-900">{t('passwordRequired')}</h3>
+                                <h3 className="text-xl font-bold text-center text-gray-900">
+                                    {error === 'invalid_password' ? t('invalidPassword') : t('passwordRequired')}
+                                </h3>
                                 <p className="text-center text-gray-500 text-sm mb-2">{t('enterPassword')}</p>
                                 <input
                                     type="text"
@@ -1320,8 +1324,13 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                     placeholder="********"
                                     maxLength={8}
                                 />
+                                {error === 'invalid_password' && (
+                                    <p className="text-center text-red-500 text-sm font-bold animate-pulse mt-1">
+                                        {t('invalidPassword')}
+                                    </p>
+                                )}
                                 <button
-                                    onClick={() => onJoin(inputKey, passwordInput)}
+                                    onClick={() => onJoin(inputKey, passwordInput.trim())}
                                     className="w-full bg-[var(--mac-accent)] text-white py-3 rounded-xl font-bold hover:bg-[var(--mac-hover)] transition-transform active:scale-95 shadow-md flex items-center justify-center gap-2"
                                 >
                                     <Unlock size={18} /> {t('verify')}
