@@ -510,9 +510,18 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         if (!fileHandle) {
             try {
                 // @ts-ignore
+                if (!window.showSaveFilePicker) {
+                    throw new Error("Your browser does not support selective saving. Please use Chrome/Edge on Desktop.");
+                }
+                // @ts-ignore
                 fileHandle = await window.showSaveFilePicker({ suggestedName: fileMeta.name });
-            } catch (err) {
-                addLog('User cancelled save.');
+            } catch (err: any) {
+                if (err.name === 'AbortError') {
+                    addLog('User cancelled save.');
+                } else {
+                    addLog(`Save Error: ${err.message}`);
+                    setError(err.message || 'File System API Error');
+                }
                 return;
             }
         }
@@ -1080,10 +1089,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
 
 // --- Sub Components ---
 
-function Footer() {
-    return <div className="fixed bottom-4 right-4 text-xs text-gray-500 font-mono">{APP_VERSION}</div>;
-}
-
 function LogViewer({ logs }: { logs: string[] }) {
     const [isOpen, setIsOpen] = useState(false);
     return (
@@ -1427,10 +1432,17 @@ function SenderView({
     const [isSharing, setIsSharing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(mainFile.downloadUrl);
-        setIsSharing(true);
-        setTimeout(() => setIsSharing(false), 2000);
+    const handleCopyLink = async () => {
+        try {
+            if (mainFile && mainFile.downloadUrl) {
+                await navigator.clipboard.writeText(mainFile.downloadUrl);
+                setIsSharing(true);
+                setTimeout(() => setIsSharing(false), 2000);
+            }
+        } catch (err) {
+            addLog(`Copy failed: ${err}`);
+            alert("Copy failed. Please copy manually.");
+        }
     };
 
     const handleDrop = (e: React.DragEvent) => {
@@ -1502,7 +1514,7 @@ function SenderView({
                     </div>
 
                     <div className={`bg-white p-3 rounded-2xl shadow-lg mb-6 transition-all ${isLocked ? 'opacity-50 grayscale' : ''}`}>
-                        <QRCodeSVG value={mainFile.downloadUrl} className="w-40 h-40" />
+                        {mainFile?.downloadUrl && <QRCodeSVG value={mainFile.downloadUrl} className="w-40 h-40" />}
                         {isLocked && (
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <Lock size={48} className="text-gray-400" />
