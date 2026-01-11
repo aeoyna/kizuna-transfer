@@ -156,7 +156,7 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-/* Decorative Top Strip (Japan Post Red inspired) */
+/* Decorative Top Strip (Airmail inspired) */
 .ios-postbox::before {
   content: '';
   position: absolute;
@@ -164,12 +164,16 @@ body {
   left: 0;
   right: 0;
   height: 6px;
-  /* Red and White stripe */
+  /* Airmail stripe: Blue/White/Red/White pattern */
   background: repeating-linear-gradient(-45deg,
-      #cc0000,
-      #cc0000 10px,
+      #5ac8fa,
+      #5ac8fa 10px,
       #ffffff 10px,
-      #ffffff 20px);
+      #ffffff 20px,
+      #ff3b30 20px,
+      #ff3b30 30px,
+      #ffffff 30px,
+      #ffffff 40px);
   opacity: 1;
 }
 
@@ -182,19 +186,19 @@ body {
 .parcel-dropzone {
   margin-top: auto;
   margin-bottom: auto;
-  /* Stylish red dashed border */
-  border: 2px dashed #ff3b30;
+  /* Light blue/gray dashed border to match airmail theme */
+  border: 2px dashed #d1d5db;
   border-radius: 12px;
-  background: #fff5f5;
-  /* Very subtle red tint */
+  background: #f9fafb;
+  /* Very subtle cool gray/blue tint */
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
 .ios-postbox:hover .parcel-dropzone {
-  border-color: #cc0000;
-  background: #ffebeb;
+  border-color: #5ac8fa;
+  background: #f0f9ff;
 }
 
 /* Hover State */
