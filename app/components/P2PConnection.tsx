@@ -39,7 +39,6 @@ interface IncomingFileMeta {
     size: number;
     peerId: string;
     id: string; // Unique ID from sender
-    password?: string; // Optional password protection
 }
 
 interface TransferState {
@@ -254,12 +253,17 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const isLockedRef = useRef(false); // Ref for immediate access in callbacks
 
     // Password Protection
-    const [usePassword, setUsePassword] = useState(false);
-    const [transferPassword, setTransferPassword] = useState<string>('');
-    const transferPasswordRef = useRef<string>(''); // Ref for immediate access in callbacks
+    const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
+    const [generatedPassword, setGeneratedPassword] = useState('');
+    const passwordEnabledRef = useRef(false);
+    const passwordRef = useRef('');
 
-    // Generate 8-char alphanumeric password
-    const generatePassword = useCallback(() => {
+    // Receiver Auth State
+    const [isAuthRequired, setIsAuthRequired] = useState(false);
+    const [authError, setAuthError] = useState<string | null>(null);
+    const [pendingKey, setPendingKey] = useState<string>('');
+
+    const generateRandomPassword = useCallback(() => {
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
         for (let i = 0; i < 8; i++) {
@@ -273,8 +277,17 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     }, [isLocked]);
 
     useEffect(() => {
-        transferPasswordRef.current = transferPassword;
-    }, [transferPassword]);
+        passwordEnabledRef.current = isPasswordEnabled;
+        if (isPasswordEnabled && !generatedPassword) {
+            const pw = generateRandomPassword();
+            setGeneratedPassword(pw);
+            passwordRef.current = pw;
+        }
+    }, [isPasswordEnabled, generatedPassword, generateRandomPassword]);
+
+    useEffect(() => {
+        passwordRef.current = generatedPassword;
+    }, [generatedPassword]);
 
     // --- Helpers ---
 
@@ -606,9 +619,28 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             // @ts-ignore
             if (!conn.verified) {
                 if (data.type === 'handshake' && data.version === PROTOCOL_VERSION) {
-                    // @ts-ignore
-                    conn.verified = true;
-                    addLog(`Peer ${remotePeerId} verified.`);
+                    if (passwordEnabledRef.current) {
+                        conn.send({ type: 'auth_required' });
+                        addLog(`Auth required for ${remotePeerId}`);
+                    } else {
+                        // @ts-ignore
+                        conn.verified = true;
+                        addLog(`Peer ${remotePeerId} verified.`);
+                        conn.send({ type: 'handshake_ok' });
+                    }
+                    return;
+                } else if (data.type === 'auth') {
+                    if (data.password === passwordRef.current) {
+                        // @ts-ignore
+                        conn.verified = true;
+                        addLog(`Peer ${remotePeerId} authenticated successfully.`);
+                        conn.send({ type: 'handshake_ok' });
+                    } else {
+                        addLog(`Security: Incorrect password from ${remotePeerId}`);
+                        conn.send({ type: 'auth_error' });
+                        recordFailure();
+                        setTimeout(() => conn.close(), 1000);
+                    }
                     return;
                 } else {
                     addLog(`Security: Unverified peer ${remotePeerId} sent data. Closing.`);
@@ -620,14 +652,28 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         try {
+            if (data.type === 'auth_required') {
+                setIsAuthRequired(true);
+                return;
+            }
+            if (data.type === 'handshake_ok') {
+                setIsAuthRequired(false);
+                setAuthError(null);
+                const activeConn = connectionsRef.current[0];
+                if (activeConn) activeConn.send({ type: 'get_metadata' });
+                return;
+            }
+            if (data.type === 'auth_error') {
+                setAuthError(t('incorrectPassword'));
+                return;
+            }
             if (data.type === 'metadata_list') {
                 // Multi-file support: Receive list of files
                 const files: IncomingFileMeta[] = data.files.map((f: any) => ({
                     name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
                     size: f.fileSize,
                     peerId: remotePeerId,
-                    id: f.id,
-                    password: data.password || undefined // Include password if set
+                    id: f.id
                 }));
 
                 setIncomingFiles(files);
@@ -646,8 +692,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     activeConn.send({
                         type: 'metadata_list',
                         files: filesMeta,
-                        peerId: myId,
-                        password: transferPasswordRef.current || undefined // Use ref for current value
+                        peerId: myId
                     });
                 }
             }
@@ -770,7 +815,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     connectionsRef.current = newConns;
                     addLog("Streams connected. Sending handshake...");
                     newConns.forEach(c => c.send({ type: 'handshake', version: PROTOCOL_VERSION }));
-                    setTimeout(() => newConns[0].send({ type: 'get_metadata' }), 500);
+                    // Wait for auth or handshake_ok from sender
                 }
             });
 
@@ -917,19 +962,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     }, []);
 
     // File Handle
-    const handleFileSelect = async (files: File[], enablePassword?: boolean) => {
+    const handleFileSelect = async (files: File[]) => {
         if (files.length === 0) return;
-
-        // Generate password if requested
-        if (enablePassword) {
-            const newPassword = generatePassword();
-            setTransferPassword(newPassword);
-            setUsePassword(true);
-            addLog(`Password protection enabled: ${newPassword}`);
-        } else {
-            setTransferPassword('');
-            setUsePassword(false);
-        }
 
         const baseUrl = window.location.origin;
         // Always generate a new key when files are added
@@ -995,13 +1029,18 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         countdown={countdown}
                         inputKey={inputKey}
                         isResume={!!resumeHandle}
+                        isAuthRequired={isAuthRequired}
+                        authError={authError}
+                        onVerifyPassword={(pw) => {
+                            connectionsRef.current.forEach(c => c.send({ type: 'auth', password: pw }));
+                        }}
                     />
                 ) : hostedFiles.length > 0 ? (
                     <SenderView
                         hostedFiles={hostedFiles}
                         activeStreams={activeStreamCount}
                         onSchedule={updateSchedule}
-                        onAddFile={(files) => handleFileSelect(files, usePassword)}
+                        onAddFile={handleFileSelect}
                         senderStats={senderStats}
                         peerDiffs={peerDiffs}
                         onStopPeer={(peerId: string) => {
@@ -1012,7 +1051,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         }}
                         isLocked={isLocked}
                         onToggleLock={() => setIsLocked(!isLocked)}
-                        password={transferPassword}
+                        password={generatedPassword}
+                        passwordEnabled={isPasswordEnabled}
                     />
                 ) : (
                     <InitialView
@@ -1024,6 +1064,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         isCaptchaActive={isCaptchaActive}
                         captcha={captcha}
                         onCaptchaVerify={handleCaptchaVerify}
+                        isPasswordEnabled={isPasswordEnabled}
+                        onTogglePassword={setIsPasswordEnabled}
                     />
                 )}
             </div>
@@ -1067,7 +1109,7 @@ function LogViewer({ logs }: { logs: string[] }) {
 }
 
 interface InitialViewProps {
-    onFileSelect: (files: File[], enablePassword?: boolean) => void;
+    onFileSelect: (files: File[]) => void;
     onJoin: (key: string) => void;
     inputKey: string;
     setInputKey: (key: string) => void;
@@ -1075,19 +1117,23 @@ interface InitialViewProps {
     isCaptchaActive: boolean;
     captcha: { q: string; a: string };
     onCaptchaVerify: (a: string) => void;
+    isPasswordEnabled: boolean;
+    onTogglePassword: (enabled: boolean) => void;
 }
 
-function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify }: InitialViewProps) {
+function InitialView({
+    onFileSelect, onJoin, inputKey, setInputKey, error, isCaptchaActive, captcha, onCaptchaVerify,
+    isPasswordEnabled, onTogglePassword
+}: InitialViewProps) {
     const { t, language } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
-    const [enablePassword, setEnablePassword] = useState(false);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
         const files = Array.from(e.dataTransfer.files);
-        if (files.length > 0) onFileSelect(files, enablePassword);
+        if (files.length > 0) onFileSelect(files);
     };
 
 
@@ -1144,19 +1190,23 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                             </span>
                         </div>
 
+                        <div className="h-6"></div> {/* Spacer */}
+
                         {/* Password Checkbox */}
-                        <label className="flex items-center gap-3 cursor-pointer mt-2 mb-4 p-3 bg-white/50 rounded-xl border border-gray-100 hover:bg-white/80 transition-colors">
-                            <input
-                                type="checkbox"
-                                checked={enablePassword}
-                                onChange={(e) => setEnablePassword(e.target.checked)}
-                                className="w-5 h-5 rounded border-gray-300 text-[#ff6b6b] focus:ring-[#ff6b6b]"
-                            />
-                            <div>
-                                <span className="text-sm font-medium text-gray-700">🔐 パスワードを設定</span>
-                                <p className="text-xs text-gray-500">受取人にパスワード入力を求めます</p>
+                        <div
+                            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onTogglePassword(!isPasswordEnabled);
+                            }}
+                        >
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isPasswordEnabled ? 'bg-[#ff6b6b] border-[#ff6b6b]' : 'border-gray-300'}`}>
+                                {isPasswordEnabled && <CheckCircle2 size={12} className="text-white" />}
                             </div>
-                        </label>
+                            <span className="text-sm font-medium text-gray-600">{t('requirePassword')}</span>
+                        </div>
+
+                        <div className="h-4"></div>
                     </div>
 
                     <input
@@ -1164,7 +1214,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         type="file"
                         className="hidden"
                         multiple
-                        onChange={(e) => e.target.files && e.target.files.length > 0 && onFileSelect(Array.from(e.target.files), enablePassword)}
+                        onChange={(e) => e.target.files && e.target.files.length > 0 && onFileSelect(Array.from(e.target.files))}
                     />
                 </div>
 
@@ -1243,51 +1293,50 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                 </div>
             </div >
 
-            {
-                (error || isCaptchaActive) && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
-                        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
-                            {isCaptchaActive ? (
-                                <div className="space-y-4">
-                                    <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
-                                    <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
-                                    <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
-                                            value={captchaInput}
-                                            onChange={(e) => setCaptchaInput(e.target.value)}
-                                            placeholder="?"
-                                        />
-                                        <button
-                                            onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
-                                            className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
-                                        >
-                                            {t('verify')}
-                                        </button>
-                                    </div>
+            {(error || isCaptchaActive) && (
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
+                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
+                        {isCaptchaActive ? (
+                            <div className="space-y-4">
+                                <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
+                                <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
+                                <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
+                                        value={captchaInput}
+                                        onChange={(e) => setCaptchaInput(e.target.value)}
+                                        placeholder="?"
+                                    />
+                                    <button
+                                        onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
+                                        className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
+                                    >
+                                        {t('verify')}
+                                    </button>
                                 </div>
-                            ) : (
-                                <div className="text-center space-y-4">
-                                    <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
-                                        <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
-                                    <p className="text-gray-600 font-medium">{error}</p>
-                                    {error !== t('addressNotFound') && (
-                                        <button
-                                            onClick={() => window.location.reload()}
-                                            className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
-                                        >
-                                            {t('retry')}
-                                        </button>
-                                    )}
+                            </div>
+                        ) : (
+                            <div className="text-center space-y-4">
+                                <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
+                                    <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
                                 </div>
-                            )}
-                        </div>
+                                <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
+                                <p className="text-gray-600 font-medium">{error}</p>
+                                {error !== t('addressNotFound') && (
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
+                                    >
+                                        {t('retry')}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
-                )
+                </div>
+            )
             }
 
             {/* P2P Explanation Section - At Bottom */}
@@ -1364,9 +1413,13 @@ interface SenderViewProps {
     isLocked: boolean;
     onToggleLock: () => void;
     password?: string;
+    passwordEnabled?: boolean;
 }
 
-function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer, isLocked, onToggleLock, password }: SenderViewProps) {
+function SenderView({
+    hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer,
+    isLocked, onToggleLock, password, passwordEnabled
+}: SenderViewProps) {
     const { t } = useLanguage();
     const mainFile = hostedFiles[0];
     const [isSharing, setIsSharing] = useState(false);
@@ -1434,10 +1487,14 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         <h1 className="text-5xl font-bold tracking-wider text-[var(--mac-text)] font-mono">
                             {mainFile.transferKey.slice(0, 3)}-{mainFile.transferKey.slice(3)}
                         </h1>
-                        {password && (
-                            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                                <p className="text-xs text-yellow-700 font-medium mb-1">🔐 パスワード</p>
-                                <p className="font-mono font-bold text-lg text-yellow-900">{password}</p>
+                        {passwordEnabled && password && (
+                            <div className="mt-4 animate-fade-in">
+                                <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest mb-1">{t('password')}</p>
+                                <div className="inline-block bg-white border border-red-100 rounded-lg px-4 py-2 shadow-sm">
+                                    <span className="text-2xl font-mono font-bold text-gray-800 tracking-wider">
+                                        {password}
+                                    </span>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1529,27 +1586,58 @@ interface ReceiverViewProps {
     countdown: string;
     inputKey: string;
     isResume?: boolean;
+    isAuthRequired?: boolean;
+    authError?: string | null;
+    onVerifyPassword?: (password: string) => void;
 }
 
-function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume }: ReceiverViewProps) {
+function ReceiverView({
+    status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll,
+    countdown, inputKey, isResume, isAuthRequired, authError, onVerifyPassword
+}: ReceiverViewProps) {
     const { t } = useLanguage();
     const [passwordInput, setPasswordInput] = useState('');
-    const [passwordVerified, setPasswordVerified] = useState(false);
-    const [passwordError, setPasswordError] = useState(false);
 
-    // Check if any file requires password
-    const requiredPassword = files[0]?.password;
-    const needsPassword = !!requiredPassword && !passwordVerified;
+    if (isAuthRequired) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--mac-bg)] p-6 relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-red-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '8s' }} />
+                </div>
+                <div className="relative z-10 w-full max-w-md flex flex-col items-center animate-fade-in">
+                    <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 text-[#ff6b6b] shadow-inner">
+                        <Lock size={32} strokeWidth={1.5} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-[var(--mac-text)] mb-2">{t('securityCheck')}</h2>
+                    <p className="text-[var(--mac-text-secondary)] text-sm mb-8">{t('enterPassword')}</p>
 
-    const handlePasswordSubmit = () => {
-        if (passwordInput === requiredPassword) {
-            setPasswordVerified(true);
-            setPasswordError(false);
-        } else {
-            setPasswordError(true);
-            setPasswordInput('');
-        }
-    };
+                    <div className="w-full space-y-4">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={passwordInput}
+                                onChange={(e) => setPasswordInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && onVerifyPassword?.(passwordInput)}
+                                className={`w-full bg-white border-2 ${authError ? 'border-red-400' : 'border-gray-200'} rounded-2xl px-6 py-4 text-center text-xl font-mono font-bold focus:border-[#ff6b6b] outline-none shadow-sm transition-all`}
+                                placeholder="8 Characters"
+                                maxLength={20}
+                                autoFocus
+                            />
+                            {authError && <p className="text-red-500 text-xs font-bold mt-2 text-center">{authError}</p>}
+                        </div>
+
+                        <button
+                            onClick={() => onVerifyPassword?.(passwordInput)}
+                            className="w-full mac-button bg-[#ff6b6b] hover:bg-red-500 text-white flex items-center justify-center gap-2 py-4"
+                        >
+                            <ArrowRight size={20} />
+                            {t('verify')}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--mac-bg)] p-6 relative overflow-hidden">
@@ -1569,38 +1657,8 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                     <p className="text-[var(--mac-text-secondary)]">From: <span className="font-mono font-bold">{inputKey.slice(0, 3)}-{inputKey.slice(3)}</span></p>
                 </div>
 
-                {/* Password Input (if required) */}
-                {needsPassword && (
-                    <div className="mb-8 w-full max-w-md ios-card-glass p-6 text-center">
-                        <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                            <Lock size={24} className="text-yellow-600" />
-                        </div>
-                        <h3 className="text-lg font-bold text-[var(--mac-text)] mb-2">🔐 パスワードが必要です</h3>
-                        <p className="text-sm text-[var(--mac-text-secondary)] mb-4">送信者から受け取ったパスワードを入力してください</p>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={passwordInput}
-                                onChange={(e) => setPasswordInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-                                placeholder="パスワード"
-                                className={`flex-1 border-2 rounded-xl px-4 py-3 text-center font-mono font-bold text-lg ${passwordError ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-                            />
-                            <button
-                                onClick={handlePasswordSubmit}
-                                className="bg-[var(--mac-accent)] text-white px-6 rounded-xl font-bold hover:opacity-90 transition-opacity"
-                            >
-                                確認
-                            </button>
-                        </div>
-                        {passwordError && (
-                            <p className="text-red-500 text-sm mt-2">パスワードが違います</p>
-                        )}
-                    </div>
-                )}
-
                 {/* Download All Button */}
-                {files.length > 1 && onDownloadAll && !needsPassword && (
+                {files.length > 1 && onDownloadAll && (
                     <button
                         onClick={onDownloadAll}
                         className="mb-8 mac-button flex items-center gap-2 shadow-lg hover:scale-105 transition-transform"
@@ -1635,13 +1693,11 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
 
                             <button
                                 onClick={() => onStartDownload(file)}
-                                disabled={needsPassword || status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
+                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
                                 className={`w-full mt-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                                    ${needsPassword ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'mac-button'}`}
+                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'mac-button'}`}
                             >
-                                {needsPassword ? (
-                                    <><Lock size={16} /> パスワードが必要です</>
-                                ) : activeFile?.id === file.id ? (status === 'connected' ? 'Downloading...' : 'Starting...') : (
+                                {activeFile?.id === file.id ? (status === 'connected' ? 'Downloading...' : 'Starting...') : (
                                     <><Download size={16} /> Download</>
                                 )}
                             </button>

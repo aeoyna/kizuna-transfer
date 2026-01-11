@@ -54,7 +54,11 @@ export const translations = {
         unlockRoom: "Unlock Room",
         roomLocked: "Room Locked",
         roomLockedDesc: "No new connections allowed.",
-        connectionRejected: "Connection Rejected: Room is locked."
+        connectionRejected: "Connection Rejected: Room is locked.",
+        requirePassword: "Require Password",
+        password: "Password",
+        incorrectPassword: "Incorrect password",
+        enterPassword: "Enter password"
     },
     ja: {
         sendFiles: "ファイルを送る",
@@ -109,7 +113,11 @@ export const translations = {
         unlockRoom: "ロック解除",
         roomLocked: "部屋はロック済み",
         roomLockedDesc: "新規接続を受け付けません。",
-        connectionRejected: "接続拒否: 部屋がロックされています。"
+        connectionRejected: "接続拒否: 部屋がロックされています。",
+        requirePassword: "パスワードを要求する",
+        password: "パスワード",
+        incorrectPassword: "パスワードが違います",
+        enterPassword: "パスワードを入力してください"
     },
     zh: {
         sendFiles: "发送文件",
@@ -164,7 +172,11 @@ export const translations = {
         unlockRoom: "解锁房间",
         roomLocked: "房间已锁定",
         roomLockedDesc: "不再接受新连接。",
-        connectionRejected: "连接拒绝：房间已锁定。"
+        connectionRejected: "连接拒绝：房间已锁定。",
+        requirePassword: "需要密码",
+        password: "密码",
+        incorrectPassword: "密码错误",
+        enterPassword: "请输入密码"
     },
     ko: {
         sendFiles: "파일 보내기",
@@ -219,7 +231,11 @@ export const translations = {
         unlockRoom: "잠금 해제",
         roomLocked: "방이 잠김",
         roomLockedDesc: "새로운 연결을 허용하지 않습니다.",
-        connectionRejected: "연결 거부: 방이 잠겼습니다."
+        connectionRejected: "연결 거부: 방이 잠겼습니다.",
+        requirePassword: "비밀번호 요구",
+        password: "비밀번호",
+        incorrectPassword: "비밀번호가 틀렸습니다",
+        enterPassword: "비밀번호를 입력하세요"
     },
     ain: {
         sendFiles: "カンタミ オマンテ",
@@ -274,6 +290,10 @@ export const translations = {
         unlockRoom: "ル サル",
         roomLocked: "ル トゥ 完了",
         roomLockedDesc: "アシリ ウモシ ダメ。",
-        connectionRejected: "ウモシ 拒否: ル トゥ。"
+        connectionRejected: "ウモシ 拒否: ル トゥ。",
+        requirePassword: "トゥンペ エウ",
+        password: "トゥンペ",
+        incorrectPassword: "トゥンペ エコポイ",
+        enterPassword: "トゥンペ エウ"
     }
 };
