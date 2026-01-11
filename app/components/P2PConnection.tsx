@@ -1015,7 +1015,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     return (
         <div className="min-h-screen flex flex-col" style={themeStyle}>
             <div className="flex-1">
-                {incomingFiles.length > 0 ? (
+                {isAuthRequired || incomingFiles.length > 0 || status === 'connecting' ? (
                     <ReceiverView
                         status={status}
                         files={incomingFiles}
@@ -1634,6 +1634,23 @@ function ReceiverView({
                             {t('verify')}
                         </button>
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === 'connecting' && files.length === 0) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--mac-bg)] p-6 relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '8s' }} />
+                </div>
+                <div className="relative z-10 w-full max-w-md flex flex-col items-center animate-fade-in">
+                    <div className="w-16 h-16 bg-white/50 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 text-[var(--mac-accent)] shadow-sm">
+                        <Loader2 size={32} strokeWidth={1.5} className="animate-spin" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[var(--mac-text)] mb-2">Connecting...</h2>
+                    <p className="text-[var(--mac-text-secondary)] text-sm italic">Establishing secure P2P link</p>
                 </div>
             </div>
         );
