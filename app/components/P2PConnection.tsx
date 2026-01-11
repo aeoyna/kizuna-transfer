@@ -1093,7 +1093,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
                         {/* Top Icon & Title */}
                         <div className="mt-6 mb-4 flex flex-col items-center">
-                            <div className="w-16 h-16 bg-[var(--mac-accent)]/10 rounded-2xl flex items-center justify-center mb-4 text-[var(--mac-accent)]">
+                            <div className="w-16 h-16 bg-[#cc0000]/10 rounded-2xl flex items-center justify-center mb-4 text-[#cc0000]">
                                 <Package size={36} strokeWidth={1.5} />
                             </div>
                             <h2 className="text-2xl font-bold text-[var(--mac-text)] mb-1">{t('sendFiles')}</h2>
@@ -1101,8 +1101,8 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                         </div>
 
                         {/* Explicit Dropzone */}
-                        <div className={`parcel-dropzone w-full flex-1 flex flex-col items-center justify-center p-4 border-dashed ${isDragging ? 'bg-blue-50 border-blue-400' : ''}`}>
-                            <div className="mb-3 text-[var(--mac-accent)] opacity-60">
+                        <div className={`parcel-dropzone w-full flex-1 flex flex-col items-center justify-center p-4 border-dashed ${isDragging ? 'bg-red-50 border-red-400' : ''}`}>
+                            <div className="mb-3 text-[#cc0000] opacity-60">
                                 <UploadCloud size={40} strokeWidth={1} />
                             </div>
                             <p className="text-[var(--mac-text)] font-medium text-sm mb-1">{t('clickOrDrag')}</p>
