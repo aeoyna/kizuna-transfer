@@ -899,19 +899,15 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         if (files.length === 0) return;
 
         const baseUrl = window.location.origin;
-        // If first file, generate key. If additional, keep key.
-        let currentKey = hostedFiles.length > 0 ? hostedFiles[0].transferKey : null;
+        // Always generate a new key when files are added
+        const newKey = Math.floor(100000 + Math.random() * 900000).toString();
+        await initPeer(0, newKey);
 
-        if (!currentKey) {
-            currentKey = Math.floor(100000 + Math.random() * 900000).toString();
-            await initPeer(0, currentKey);
-        }
-
-        const shareUrl = `${baseUrl}/${currentKey}`;
+        const shareUrl = `${baseUrl}/${newKey}`;
 
         const newFiles: HostedFile[] = files.map(file => {
             const newFileId = Math.random().toString(36).substring(7);
-            addLog(`File added: ${file.name} (${file.size}). Key: ${currentKey}`);
+            addLog(`File added: ${file.name} (${file.size}). Key: ${newKey}`);
 
             return {
                 id: newFileId,
@@ -919,12 +915,19 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 downloadUrl: shareUrl,
                 downloads: 0,
                 availableFrom: 0,
-                transferKey: currentKey!
+                transferKey: newKey
             };
         });
 
-        // Append to list instead of replacing
-        setHostedFiles(prev => [...prev, ...newFiles]);
+        // Update existing files with new key and append new files
+        setHostedFiles(prev => {
+            const updatedExisting = prev.map(f => ({
+                ...f,
+                downloadUrl: shareUrl,
+                transferKey: newKey
+            }));
+            return [...updatedExisting, ...newFiles];
+        });
         setStatus('ready');
     };
 
