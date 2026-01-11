@@ -633,6 +633,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     // @ts-ignore
                     conn.verified = true;
                     addLog(`Peer ${remotePeerId} verified.`);
+                    setError(null);
                     return;
                 } else {
                     addLog(`Security: Unverified peer ${remotePeerId} sent data. Closing.`);
@@ -1313,7 +1314,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                 <p className="text-center text-gray-500 text-sm mb-2">{t('enterPassword')}</p>
                                 <input
                                     type="text"
-                                    className="w-full border-2 border-yellow-200 rounded-xl px-4 py-3 text-center text-2xl font-mono tracking-widest uppercase focus:border-[var(--mac-accent)] focus:ring-0 outline-none transition-colors"
+                                    className="w-full border-2 border-yellow-200 rounded-xl px-4 py-3 text-center text-2xl font-mono tracking-widest focus:border-[var(--mac-accent)] focus:ring-0 outline-none transition-colors"
                                     value={passwordInput}
                                     onChange={(e) => setPasswordInput(e.target.value)}
                                     placeholder="********"
