@@ -880,7 +880,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         // @ts-ignore
                         const msg = meta && meta.password ? 'invalid_password' : 'password_required';
                         setTimeout(() => conn.send({ type: 'error', message: msg }), 500);
-                        setTimeout(() => conn.close(), 1000);
+                        setTimeout(() => conn.close(), 2000);
                         return;
                     }
                 }
