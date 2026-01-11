@@ -824,16 +824,14 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         setTimeout(() => {
-            if (connectionsRef.current.every(c => !c.open) && status !== 'waiting_for_save') {
+            const hasAnyOpen = newConns.some(c => c.open);
+            if (!hasAnyOpen && status === 'connecting') {
                 addLog("Connection timeout.");
-
-                // --- CUSTOM USER ERROR: Address not found ---
-                // --- CUSTOM USER ERROR: Address not found ---
                 setError(t('addressNotFound'));
                 setInputKey('');
                 setTimeout(() => {
                     setError(null);
-                    setStatus('initializing'); // Or whatever initial state is appropriate
+                    setStatus('initializing');
                 }, 1000);
             }
         }, 5000);
