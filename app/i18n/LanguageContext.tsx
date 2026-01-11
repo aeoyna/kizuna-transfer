@@ -17,13 +17,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         // Detect browser language
         const browserLang = navigator.language.split('-')[0] as Locale;
-        if (['en', 'ja', 'zh', 'ko'].includes(browserLang)) {
+        if (['en', 'ja', 'zh', 'ko', 'ain'].includes(browserLang)) {
             setLanguage(browserLang);
         }
 
         // Check localStorage
         const savedLang = localStorage.getItem('app-language') as Locale;
-        if (savedLang && ['en', 'ja', 'zh', 'ko'].includes(savedLang)) {
+        if (savedLang && ['en', 'ja', 'zh', 'ko', 'ain'].includes(savedLang)) {
             setLanguage(savedLang);
         }
     }, []);

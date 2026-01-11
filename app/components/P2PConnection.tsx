@@ -944,7 +944,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         const checkResume = async () => {
             try {
                 const savedState = await loadTransferState();
-                if (savedState) {
+                if (savedState && savedState.peerId) {
                     addLog(`Found interrupted transfer: ${savedState.name}`);
                     // Multi-file partial support in resume: Just show the one we were downloading
                     setIncomingFiles([{
@@ -957,6 +957,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     setStatus('waiting_for_save');
                     const key = savedState.peerId.replace(ID_PREFIX, '');
                     setInputKey(key);
+                } else if (savedState) {
+                    // Stale or invalid state, clear it
+                    clearTransferState();
                 }
             } catch (e) {
                 console.error("Resume check failed", e);
@@ -1045,6 +1048,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                             }
                             connectionsRef.current.forEach(c => c.send({ type: 'auth', password: pw }));
                         }}
+                        onLog={addLog}
                     />
                 ) : hostedFiles.length > 0 ? (
                     <SenderView
@@ -1064,6 +1068,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         onToggleLock={() => setIsLocked(!isLocked)}
                         password={generatedPassword}
                         passwordEnabled={isPasswordEnabled}
+                        onLog={addLog}
                     />
                 ) : (
                     <InitialView
@@ -1082,7 +1087,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             </div>
 
             <LogViewer logs={logs} />
-            <Footer />
+
         </div>
     );
 }
@@ -1421,11 +1426,12 @@ interface SenderViewProps {
     onToggleLock: () => void;
     password?: string;
     passwordEnabled?: boolean;
+    onLog?: (msg: string) => void;
 }
 
 function SenderView({
     hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer,
-    isLocked, onToggleLock, password, passwordEnabled
+    isLocked, onToggleLock, password, passwordEnabled, onLog
 }: SenderViewProps) {
     const { t } = useLanguage();
     const mainFile = hostedFiles[0];
@@ -1440,7 +1446,7 @@ function SenderView({
                 setTimeout(() => setIsSharing(false), 2000);
             }
         } catch (err) {
-            addLog(`Copy failed: ${err}`);
+            onLog?.(`Copy failed: ${err}`);
             alert("Copy failed. Please copy manually.");
         }
     };
@@ -1603,11 +1609,12 @@ interface ReceiverViewProps {
     isAuthRequired?: boolean;
     authError?: string | null;
     onVerifyPassword?: (password: string) => void;
+    onLog?: (msg: string) => void;
 }
 
 function ReceiverView({
     status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll,
-    countdown, inputKey, isResume, isAuthRequired, authError, onVerifyPassword
+    countdown, inputKey, isResume, isAuthRequired, authError, onVerifyPassword, onLog
 }: ReceiverViewProps) {
     const { t } = useLanguage();
     const [passwordInput, setPasswordInput] = useState('');
@@ -1772,9 +1779,21 @@ function ReceiverView({
                         <h3 className="text-xl font-bold text-[var(--mac-text)] mb-2">Connection Error</h3>
                         <p className="text-[var(--mac-text-secondary)] mb-6">{error}</p>
                         {error !== "宛名が見つかりませんでした" && (
-                            <button onClick={() => window.location.reload()} className="mac-button w-full">
-                                Retry
-                            </button>
+                            <div className="flex flex-col gap-2 w-full mt-6">
+                                <button onClick={() => window.location.reload()} className="mac-button w-full">
+                                    Retry
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        localStorage.clear();
+                                        await clearTransferState();
+                                        window.location.href = '/';
+                                    }}
+                                    className="text-xs text-gray-400 hover:text-red-500 transition-colors py-2"
+                                >
+                                    Reset App Data (Clear Cache)
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
