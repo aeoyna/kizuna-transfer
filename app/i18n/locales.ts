@@ -55,24 +55,10 @@ export const translations = {
         roomLocked: "Room Locked",
         roomLockedDesc: "No new connections allowed.",
         connectionRejected: "Connection Rejected: Room is locked.",
-
-        // New keys
-        dropFilesHere: "Drop Files Here",
-        waitingForConnection: "Waiting for connection...",
-        filesSelected: "Files Selected",
-        totalSize: "Total Size",
-        readyToSend: "Ready to Send",
-        shareCodeGuide: "Share this code with recipient",
-        receiving: "Receiving...",
-        completed: "Completed",
-        downloadAll: "Download All",
-
-        // Password
-        enablePassword: "Enable Password Protection",
+        setPassword: "Set Password",
         password: "Password",
-        passwordRequired: "Password Required",
-        enterPassword: "Enter the password shown on sender's screen",
-        invalidPassword: "Invalid Password",
+        enterPassword: "Enter Password",
+        wrongPassword: "Wrong Password"
     },
     ja: {
         sendFiles: "ファイルを送る",
@@ -128,24 +114,10 @@ export const translations = {
         roomLocked: "部屋はロック済み",
         roomLockedDesc: "新規接続を受け付けません。",
         connectionRejected: "接続拒否: 部屋がロックされています。",
-
-        // New keys from instruction
-        dropFilesHere: "ファイルをドロップ",
-        waitingForConnection: "相手の接続を待っています...",
-        filesSelected: "ファイルを選択しました",
-        totalSize: "合計サイズ",
-        readyToSend: "送信準備完了",
-        shareCodeGuide: "このコードを相手に伝えてください",
-        receiving: "受信中...",
-        completed: "完了",
-        downloadAll: "すべて保存",
-
-        // Password
-        enablePassword: "パスワードで保護する",
+        setPassword: "パスワードを設定",
         password: "パスワード",
-        passwordRequired: "パスワードが必要です",
-        enterPassword: "送信画面に表示されているパスワードを入力",
-        invalidPassword: "パスワードが違います",
+        enterPassword: "パスワードを入力",
+        wrongPassword: "パスワードが違います"
     },
     zh: {
         sendFiles: "发送文件",
@@ -201,24 +173,10 @@ export const translations = {
         roomLocked: "房间已锁定",
         roomLockedDesc: "不再接受新连接。",
         connectionRejected: "连接拒绝：房间已锁定。",
-
-        // New keys from instruction
-        dropFilesHere: "放入文件",
-        waitingForConnection: "等待连接...",
-        filesSelected: "已选择文件",
-        totalSize: "总大小",
-        readyToSend: "准备发送",
-        shareCodeGuide: "请告知对方此代码",
-        receiving: "接收中...",
-        completed: "完成",
-        downloadAll: "全部下载",
-
-        // Password
-        enablePassword: "启用密码保护",
+        setPassword: "设置密码",
         password: "密码",
-        passwordRequired: "需要密码",
-        enterPassword: "请输入发送方显示的密码",
-        invalidPassword: "密码错误",
+        enterPassword: "输入密码",
+        wrongPassword: "密码错误"
     },
     ko: {
         sendFiles: "파일 보내기",
@@ -273,7 +231,11 @@ export const translations = {
         unlockRoom: "잠금 해제",
         roomLocked: "방이 잠김",
         roomLockedDesc: "새로운 연결을 허용하지 않습니다.",
-        connectionRejected: "연결 거부: 방이 잠겼습니다."
+        connectionRejected: "연결 거부: 방이 잠겼습니다.",
+        setPassword: "비밀번호 설정",
+        password: "비밀번호",
+        enterPassword: "비밀번호 입력",
+        wrongPassword: "비밀번호가 틀립니다"
     },
     ain: {
         sendFiles: "カンタミ オマンテ",
@@ -328,6 +290,10 @@ export const translations = {
         unlockRoom: "ル サル",
         roomLocked: "ル トゥ 完了",
         roomLockedDesc: "アシリ ウモシ ダメ。",
-        connectionRejected: "ウモシ 拒否: ル トゥ。"
+        connectionRejected: "ウモシ 拒否: ル トゥ。",
+        setPassword: "パスワード エウ",
+        password: "パスワード",
+        enterPassword: "パスワード エウ",
+        wrongPassword: "パスワード チガウ"
     }
 };
