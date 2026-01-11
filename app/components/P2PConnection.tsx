@@ -639,7 +639,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         addLog(`Security: Incorrect password from ${remotePeerId}`);
                         conn.send({ type: 'auth_error' });
                         recordFailure();
-                        setTimeout(() => conn.close(), 1000);
+                        // allow retry without closing connection
                     }
                     return;
                 } else {
@@ -1030,6 +1030,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         isAuthRequired={isAuthRequired}
                         authError={authError}
                         onVerifyPassword={(pw) => {
+                            if (pw === '') {
+                                setAuthError(null);
+                                return;
+                            }
                             connectionsRef.current.forEach(c => c.send({ type: 'auth', password: pw }));
                         }}
                     />
@@ -1614,7 +1618,10 @@ function ReceiverView({
                             <input
                                 type="text"
                                 value={passwordInput}
-                                onChange={(e) => setPasswordInput(e.target.value)}
+                                onChange={(e) => {
+                                    setPasswordInput(e.target.value);
+                                    if (authError) onVerifyPassword?.(''); // Send empty to signal clearing error on parent if we want, or better:
+                                }}
                                 onKeyDown={(e) => e.key === 'Enter' && onVerifyPassword?.(passwordInput)}
                                 className={`w-full bg-white border-2 ${authError ? 'border-red-400' : 'border-gray-200'} rounded-2xl px-6 py-4 text-center text-xl font-mono font-bold focus:border-[#ff6b6b] outline-none shadow-sm transition-all`}
                                 placeholder="8 Characters"
