@@ -615,9 +615,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
 
         // Handle Errors (e.g. Password Required)
         if (data && data.type === 'error') {
-            if (data.message === 'password_required' || data.message === 'invalid_password') {
+            const msg = typeof data.message === 'string' ? data.message.trim() : 'unknown_error';
+            if (msg === 'password_required' || msg === 'invalid_password') {
                 addLog('Password required/invalid for this connection.');
-                setError(data.message); // Will be 'password_required' or 'invalid_password'
+                setError(msg); // Will be 'password_required' or 'invalid_password'
             } else {
                 addLog(`Peer Error: ${data.message}`);
                 setError(data.message);
