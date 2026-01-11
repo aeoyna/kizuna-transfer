@@ -256,6 +256,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     // Password Protection
     const [usePassword, setUsePassword] = useState(false);
     const [transferPassword, setTransferPassword] = useState<string>('');
+    const transferPasswordRef = useRef<string>(''); // Ref for immediate access in callbacks
 
     // Generate 8-char alphanumeric password
     const generatePassword = useCallback(() => {
@@ -270,6 +271,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     useEffect(() => {
         isLockedRef.current = isLocked;
     }, [isLocked]);
+
+    useEffect(() => {
+        transferPasswordRef.current = transferPassword;
+    }, [transferPassword]);
 
     // --- Helpers ---
 
@@ -642,7 +647,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         type: 'metadata_list',
                         files: filesMeta,
                         peerId: myId,
-                        password: transferPassword || undefined // Include password if set
+                        password: transferPasswordRef.current || undefined // Use ref for current value
                     });
                 }
             }
