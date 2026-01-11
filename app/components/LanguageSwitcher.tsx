@@ -8,12 +8,12 @@ export default function LanguageSwitcher() {
     const { language, setLanguage } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
 
-    const languages: { code: Locale; label: string; flag: string }[] = [
-        { code: 'en', label: 'English', flag: '🇺🇸' },
-        { code: 'ja', label: '日本語', flag: '🇯🇵' },
-        { code: 'zh', label: '中文', flag: '🇨🇳' },
-        { code: 'ko', label: '한국어', flag: '🇰🇷' },
-        { code: 'ain', label: 'アイヌ語', flag: '🐻' },
+    const languages: { code: Locale; label: string; flag: React.ReactNode }[] = [
+        { code: 'en', label: 'English', flag: <Twemoji emoji="🇺🇸" className="w-6 h-6 drop-shadow-sm" /> },
+        { code: 'ja', label: '日本語', flag: <Twemoji emoji="🇯🇵" className="w-6 h-6 drop-shadow-sm" /> },
+        { code: 'zh', label: '中文', flag: <Twemoji emoji="🇨🇳" className="w-6 h-6 drop-shadow-sm" /> },
+        { code: 'ko', label: '한국어', flag: <Twemoji emoji="🇰🇷" className="w-6 h-6 drop-shadow-sm" /> },
+        { code: 'ain', label: 'アイヌ語', flag: <img src="/images/ainu_flag.png" alt="Ainu" className="w-6 h-4 object-cover rounded-[2px] shadow-sm" /> },
     ];
 
     return (
@@ -39,9 +39,7 @@ export default function LanguageSwitcher() {
                                 }}
                                 className={`w-full px-4 py-3 text-left text-sm font-medium flex items-center gap-3 hover:bg-gray-50 transition-colors ${language === lang.code ? 'text-[#d40000] bg-red-50' : 'text-gray-700'}`}
                             >
-                                <div className="flex items-center justify-center w-6">
-                                    <Twemoji emoji={lang.flag} className="w-5 h-5 drop-shadow-sm" />
-                                </div>
+                                <div className="flex items-center justify-center w-8">{lang.flag}</div>
                                 {lang.label}
                             </button>
                         ))}
