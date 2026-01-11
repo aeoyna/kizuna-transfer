@@ -39,6 +39,7 @@ interface IncomingFileMeta {
     size: number;
     peerId: string;
     id: string; // Unique ID from sender
+    requiresPassword?: boolean;
 }
 
 interface TransferState {
@@ -237,6 +238,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [isPasswordProtected, setIsPasswordProtected] = useState(false);
     const [transferPassword, setTransferPassword] = useState('');
 
+    // Receiver Password Input
+    const [receiverPasswordInput, setReceiverPasswordInput] = useState('');
+    const [passwordError, setPasswordError] = useState(false);
+
     // Logs
     const [logs, setLogs] = useState<string[]>([]);
 
@@ -259,6 +264,12 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     useEffect(() => {
         isLockedRef.current = isLocked;
     }, [isLocked]);
+
+    // Password Ref for callbacks
+    const transferPasswordRef = useRef('');
+    useEffect(() => {
+        transferPasswordRef.current = transferPassword;
+    }, [transferPassword]);
 
     // --- Helpers ---
 
@@ -475,7 +486,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     };
 
     // 2. Download/Receive Logic
-    const startDownload = async (fileMeta: IncomingFileMeta, fileHandle?: FileSystemFileHandle) => {
+    const startDownload = async (fileMeta: IncomingFileMeta, fileHandle?: FileSystemFileHandle, password?: string) => {
         if (!fileMeta) return;
 
         if (!fileHandle) {
@@ -534,11 +545,11 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         const activeConn = connectionsRef.current.find(c => c.open && c.peer === fileMeta.peerId);
         if (activeConn) {
             // Request specific file by ID
-            activeConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize });
+            activeConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize, password: password || '' });
         } else {
             // Queue via first available (fallback)
             const anyConn = connectionsRef.current[0];
-            if (anyConn) anyConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize });
+            if (anyConn) anyConn.send({ type: 'request_file', fileId: fileMeta.id, offsetBytes: currentSize, password: password || '' });
         }
     };
 
@@ -606,11 +617,13 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         try {
             if (data.type === 'metadata_list') {
                 // Multi-file support: Receive list of files
+                const requiresPwd = data.requiresPassword || false;
                 const files: IncomingFileMeta[] = data.files.map((f: any) => ({
                     name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
                     size: f.fileSize,
                     peerId: remotePeerId,
-                    id: f.id
+                    id: f.id,
+                    requiresPassword: requiresPwd
                 }));
 
                 setIncomingFiles(files);
@@ -629,7 +642,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     activeConn.send({
                         type: 'metadata_list',
                         files: filesMeta,
-                        peerId: myId
+                        peerId: myId,
+                        requiresPassword: !!transferPasswordRef.current
                     });
                 }
             }
@@ -691,6 +705,18 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 const requestedId = data.fileId;
                 const fileObj = hostedFilesRef.current.find(f => f.id === requestedId) || hostedFilesRef.current[0];
 
+                // Password Validation
+                if (transferPasswordRef.current) {
+                    if (data.password !== transferPasswordRef.current) {
+                        addLog(`Security: Rejected request (Wrong Password) from ${remotePeerId}`);
+                        const activeConn = connectionsRef.current.find(c => c.open && c.peer === remotePeerId);
+                        if (activeConn) {
+                            activeConn.send({ type: 'password_error' });
+                        }
+                        return;
+                    }
+                }
+
                 if (fileObj) {
                     const targetConns = connectionsRef.current.filter(c => c.open && c.peer === remotePeerId);
                     // Support Offset for Resume
@@ -698,6 +724,11 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     if (offset > 0) addLog(`Peer requested resume from ${offset} bytes`);
                     sendFileParallel(fileObj.file, targetConns, offset, remotePeerId);
                 }
+            }
+            else if (data.type === 'password_error') {
+                addLog(`Password rejected by sender`);
+                setPasswordError(true);
+                setStatus('waiting_for_save');
             }
         } catch (err) {
             console.error(err);
@@ -980,11 +1011,15 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         speed={transferSpeed}
                         activeStreams={activeStreamCount}
                         error={error}
-                        onStartDownload={(file) => startDownload(file, resumeHandle)}
+                        onStartDownload={(file, password) => startDownload(file, resumeHandle, password)}
                         onDownloadAll={downloadAll}
                         countdown={countdown}
                         inputKey={inputKey}
                         isResume={!!resumeHandle}
+                        receiverPasswordInput={receiverPasswordInput}
+                        setReceiverPasswordInput={setReceiverPasswordInput}
+                        passwordError={passwordError}
+                        setPasswordError={setPasswordError}
                     />
                 ) : hostedFiles.length > 0 ? (
                     <SenderView
@@ -1518,14 +1553,18 @@ interface ReceiverViewProps {
     speed: string;
     activeStreams: number;
     error: string | null;
-    onStartDownload: (file: IncomingFileMeta) => void;
+    onStartDownload: (file: IncomingFileMeta, password?: string) => void;
     onDownloadAll?: () => void;
     countdown: string;
     inputKey: string;
     isResume?: boolean;
+    receiverPasswordInput: string;
+    setReceiverPasswordInput: (v: string) => void;
+    passwordError: boolean;
+    setPasswordError: (v: boolean) => void;
 }
 
-function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume }: ReceiverViewProps) {
+function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume, receiverPasswordInput, setReceiverPasswordInput, passwordError, setPasswordError }: ReceiverViewProps) {
     const { t } = useLanguage();
 
     return (
@@ -1580,11 +1619,31 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                                 <p className="text-xs text-[var(--mac-text-secondary)]">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
                             </div>
 
+                            {/* Password Input for protected files */}
+                            {file.requiresPassword && (
+                                <div className="mt-4 space-y-2">
+                                    <div className="flex items-center gap-2 text-amber-600 text-sm">
+                                        <KeyRound size={14} />
+                                        <span>{t('enterPassword')}</span>
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={receiverPasswordInput}
+                                        onChange={(e) => { setReceiverPasswordInput(e.target.value); setPasswordError(false); }}
+                                        placeholder="********"
+                                        className={`w-full px-4 py-2 border rounded-lg font-mono text-center tracking-widest ${passwordError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+                                    />
+                                    {passwordError && (
+                                        <p className="text-red-500 text-xs text-center">{t('wrongPassword')}</p>
+                                    )}
+                                </div>
+                            )}
+
                             <button
-                                onClick={() => onStartDownload(file)}
-                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
+                                onClick={() => onStartDownload(file, file.requiresPassword ? receiverPasswordInput : undefined)}
+                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id) || (file.requiresPassword && !receiverPasswordInput)}
                                 className={`w-full mt-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'mac-button'}`}
+                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : (file.requiresPassword && !receiverPasswordInput) ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'mac-button'}`}
                             >
                                 {activeFile?.id === file.id ? (status === 'connected' ? 'Downloading...' : 'Starting...') : (
                                     <><Download size={16} /> Download</>
