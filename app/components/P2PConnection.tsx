@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
     Copy, CheckCircle2, FileIcon, Download, Upload, XCircle, Loader2, HardDrive, Zap,
     CalendarClock, KeyRound, ArrowRight, Terminal, Share2, Mail, Twitter, ShieldAlert,
-    QrCode, Users, Play, Plus, BookOpen, HelpCircle, Lock, Unlock, Globe
+    QrCode, Users, Play, Plus, BookOpen, HelpCircle, Lock, Unlock, Globe, Package, UploadCloud
 } from 'lucide-react';
 import type { DataConnection } from 'peerjs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -1017,6 +1017,7 @@ function LogViewer({ logs }: { logs: string[] }) {
                 <div className="flex items-center gap-2">
                     <Terminal size={14} />
                     <span>System Logs</span>
+                    <span className="text-gray-500 text-[10px]">v2f904d0</span>
                 </div>
                 <span>{isOpen ? '▼' : '▲'}</span>
             </div>
@@ -1087,35 +1088,30 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                     onDrop={handleDrop}
                 >
                     {/* Inner content wrapper */}
+                    {/* Inner content wrapper */}
                     <div className="relative z-20 flex flex-col items-center w-full h-full">
 
-                        {/* The Slot (Top) */}
-                        <div className="w-full mt-6 mb-8 flex flex-col items-center">
-                            {language === 'ja' ? (
-                                <div className="text-white/80 text-4xl font-bold mb-2 drop-shadow-md">
-                                    〒
-                                </div>
-                            ) : (
-                                <div className="mb-2 drop-shadow-md text-white/80">
-                                    <Globe size={32} strokeWidth={2.5} />
-                                </div>
-                            )}
-                            <div className="ios-postbox-slot w-56 h-8 mx-auto mb-2" />
-                            <div className="text-black/60 font-bold text-[10px] bg-white/90 rounded px-3 py-0.5 shadow-sm uppercase tracking-widest">
-                                {t('postbox')}
+                        {/* Top Icon & Title */}
+                        <div className="mt-6 mb-4 flex flex-col items-center">
+                            <div className="w-16 h-16 bg-[var(--mac-accent)]/10 rounded-2xl flex items-center justify-center mb-4 text-[var(--mac-accent)]">
+                                <Package size={36} strokeWidth={1.5} />
                             </div>
+                            <h2 className="text-2xl font-bold text-[var(--mac-text)] mb-1">{t('sendFiles')}</h2>
+                            <p className="text-[var(--mac-text-secondary)] text-sm px-4">Secure P2P File Transfer</p>
                         </div>
 
-                        <div className="relative animate-float mb-6">
-                            <Mail
-                                size={64}
-                                strokeWidth={1.5}
-                                className="text-white drop-shadow-lg"
-                            />
+                        {/* Explicit Dropzone */}
+                        <div className={`parcel-dropzone w-full flex-1 flex flex-col items-center justify-center p-4 border-dashed ${isDragging ? 'bg-blue-50 border-blue-400' : ''}`}>
+                            <div className="mb-3 text-[var(--mac-accent)] opacity-60">
+                                <UploadCloud size={40} strokeWidth={1} />
+                            </div>
+                            <p className="text-[var(--mac-text)] font-medium text-sm mb-1">{t('clickOrDrag')}</p>
+                            <span className="text-[10px] text-[var(--mac-text-secondary)] uppercase tracking-wider font-bold">
+                                {isDragging ? 'Drop Files Here' : 'Drop Zone'}
+                            </span>
                         </div>
 
-                        <h2 className="text-2xl font-bold text-white mb-2 drop-shadow-md">{t('sendFiles')}</h2>
-                        <p className="text-white/80 text-sm">{t('clickOrDrag')}</p>
+                        <div className="h-6"></div> {/* Spacer */}
                     </div>
 
                     <input

@@ -135,102 +135,91 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
-/* iOS Postbox Utilities */
+/* iOS Postbox Utilities - Modern Glass Style */
+/* iOS Postbox - Parcel/Letter Style */
 .ios-postbox {
-  /* Premium Polymer Finish (Red) */
-  background:
-    /* Specular highlight (Gloss) */
-    radial-gradient(120% 120% at 50% -10%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%),
-    /* Ambient Bounce Light */
-    radial-gradient(100% 100% at 50% 110%, rgba(255, 200, 200, 0.3) 0%, transparent 60%),
-    /* Base Material */
-    linear-gradient(180deg, #d32f2f 0%, #b71c1c 100%);
+  background: #ffffff;
+  /* Slightly rounded like a stacked envelope or box */
+  border-radius: 16px;
 
-  /* Modern Silhouette */
-  border-radius: 48px 48px 24px 24px;
-
-  /* Floating Elevation Shadow */
+  /* Soft depth shadow */
   box-shadow:
-    /* Rim Light (Top Edge) */
-    inset 0 1px 1px rgba(255, 255, 255, 0.6),
-    /* Deep Ambient Shadow */
-    0 25px 50px -12px rgba(183, 28, 28, 0.4),
-    0 15px 25px -5px rgba(0, 0, 0, 0.2);
+    0 2px 4px rgba(0, 0, 0, 0.02),
+    0 15px 30px -5px rgba(0, 0, 0, 0.08);
 
-  color: white;
+  color: var(--mac-text);
   position: relative;
-  overflow: visible;
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-
-  /* Subtle Noise Texture for realism */
-  /* background-image: url("data:image/svg+xml,..."); // Keep simple CSS for now */
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-/* Glassy Roof Cap */
+/* Decorative Top Strip (Airmail or Tape inspired) */
 .ios-postbox::before {
   content: '';
   position: absolute;
-  top: -2px;
-  left: 2px;
-  right: 2px;
-  height: 80px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.05) 30%, transparent 100%);
-  border-radius: 46px 46px 12px 12px;
-  z-index: 0;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  /* Subtle striped pattern */
+  background: repeating-linear-gradient(-45deg,
+      #ff6b6b,
+      #ff6b6b 10px,
+      #ffffff 10px,
+      #ffffff 20px,
+      #4ecdc4 20px,
+      #4ecdc4 30px,
+      #ffffff 30px,
+      #ffffff 40px);
+  opacity: 0.8;
 }
 
-/* Stylish Slot (Futuristic/Clean) */
+/* Hide after pseudo element */
+.ios-postbox::after {
+  display: none;
+}
+
+/* Internal Dropzone Area */
+.parcel-dropzone {
+  margin-top: auto;
+  margin-bottom: auto;
+  border: 2px dashed #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ios-postbox:hover .parcel-dropzone {
+  border-color: var(--mac-accent);
+  background: #f0f7ff;
+}
+
+/* Hover State */
+.ios-postbox:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 20px 40px -5px rgba(0, 0, 0, 0.12),
+    0 8px 16px -4px rgba(0, 0, 0, 0.06);
+}
+
+/* Stylish Slot (Modern) */
 .ios-postbox-slot {
   position: relative;
   z-index: 20;
-  height: 24px;
-  background: #2a2a2a;
-  border-radius: 12px;
-  /* Premium Metallic Bezel */
+  height: 12px;
+  background: linear-gradient(90deg, var(--mac-accent), #5856d6);
+  border-radius: 6px;
   box-shadow:
-    /* Bezel Highlight */
-    0 1px 0 rgba(255, 255, 255, 0.3),
-    /* Bezel Shadow */
-    0 -1px 0 rgba(0, 0, 0, 0.2),
-    /* Inner Depth */
-    inset 0 4px 6px rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.2);
+    0 2px 8px rgba(0, 113, 227, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
-/* Minimalist Base Shadow (Contact Shadow) */
-.ios-postbox::after {
-  content: '';
-  position: absolute;
-  bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%) scaleX(0.8);
-  width: 80%;
-  height: 20px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.2) 0%, transparent 70%);
-  z-index: -1;
-  filter: blur(8px);
-  transition: all 0.5s ease;
-}
 
-/* Hover Intearction */
-.ios-postbox:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.6),
-    0 40px 80px -20px rgba(183, 28, 28, 0.6),
-    0 25px 40px -10px rgba(0, 0, 0, 0.3);
-}
-
-/* Hover State - Shadow shrinks as object lifts */
-.ios-postbox:hover::after {
-  transform: translateX(-50%) scaleX(0.7);
-  opacity: 0.6;
-}
 
 .ios-card-glass {
   background: rgba(255, 255, 255, 0.7);
