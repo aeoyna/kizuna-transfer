@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { Globe } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Locale } from '../i18n/locales';
+import { FlagUS, FlagJP, FlagCN, FlagKR } from './FlagIcons';
 
 export default function LanguageSwitcher() {
     const { language, setLanguage } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
 
-    const languages: { code: Locale; label: string; flag: string }[] = [
-        { code: 'en', label: 'English', flag: '🦅' }, // Eagle
-        { code: 'ja', label: '日本語', flag: '🐕' }, // Dog (Shiba/Akita)
-        { code: 'zh', label: '中文', flag: '🐼' }, // Panda
-        { code: 'ko', label: '한국어', flag: '🐯' }, // Tiger
-        { code: 'ain', label: 'アイヌ語', flag: '🐻' }, // Bear
+    const languages: { code: Locale; label: string; flag: React.ReactNode }[] = [
+        { code: 'en', label: 'English', flag: <FlagUS className="w-6 h-4 rounded-[2px] shadow-sm" /> },
+        { code: 'ja', label: '日本語', flag: <FlagJP className="w-6 h-4 rounded-[2px] shadow-sm" /> },
+        { code: 'zh', label: '中文', flag: <FlagCN className="w-6 h-4 rounded-[2px] shadow-sm" /> },
+        { code: 'ko', label: '한국어', flag: <FlagKR className="w-6 h-4 rounded-[2px] shadow-sm" /> },
+        { code: 'ain', label: 'アイヌ語', flag: <span className="text-xl leading-none">🐻</span> },
     ];
 
     return (
@@ -38,7 +39,7 @@ export default function LanguageSwitcher() {
                                 }}
                                 className={`w-full px-4 py-3 text-left text-sm font-medium flex items-center gap-3 hover:bg-gray-50 transition-colors ${language === lang.code ? 'text-[#d40000] bg-red-50' : 'text-gray-700'}`}
                             >
-                                <span className="text-lg">{lang.flag}</span>
+                                <div className="flex items-center justify-center w-6">{lang.flag}</div>
                                 {lang.label}
                             </button>
                         ))}
