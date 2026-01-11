@@ -621,7 +621,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
                     size: f.fileSize,
                     peerId: remotePeerId,
-                    id: f.id
+                    id: f.id,
+                    password: data.password || undefined // Include password if set
                 }));
 
                 setIncomingFiles(files);
@@ -640,7 +641,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     activeConn.send({
                         type: 'metadata_list',
                         files: filesMeta,
-                        peerId: myId
+                        peerId: myId,
+                        password: transferPassword || undefined // Include password if set
                     });
                 }
             }
@@ -1526,6 +1528,23 @@ interface ReceiverViewProps {
 
 function ReceiverView({ status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll, countdown, inputKey, isResume }: ReceiverViewProps) {
     const { t } = useLanguage();
+    const [passwordInput, setPasswordInput] = useState('');
+    const [passwordVerified, setPasswordVerified] = useState(false);
+    const [passwordError, setPasswordError] = useState(false);
+
+    // Check if any file requires password
+    const requiredPassword = files[0]?.password;
+    const needsPassword = !!requiredPassword && !passwordVerified;
+
+    const handlePasswordSubmit = () => {
+        if (passwordInput === requiredPassword) {
+            setPasswordVerified(true);
+            setPasswordError(false);
+        } else {
+            setPasswordError(true);
+            setPasswordInput('');
+        }
+    };
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--mac-bg)] p-6 relative overflow-hidden">
@@ -1545,8 +1564,38 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
                     <p className="text-[var(--mac-text-secondary)]">From: <span className="font-mono font-bold">{inputKey.slice(0, 3)}-{inputKey.slice(3)}</span></p>
                 </div>
 
+                {/* Password Input (if required) */}
+                {needsPassword && (
+                    <div className="mb-8 w-full max-w-md ios-card-glass p-6 text-center">
+                        <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                            <Lock size={24} className="text-yellow-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-[var(--mac-text)] mb-2">🔐 パスワードが必要です</h3>
+                        <p className="text-sm text-[var(--mac-text-secondary)] mb-4">送信者から受け取ったパスワードを入力してください</p>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={passwordInput}
+                                onChange={(e) => setPasswordInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                                placeholder="パスワード"
+                                className={`flex-1 border-2 rounded-xl px-4 py-3 text-center font-mono font-bold text-lg ${passwordError ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                            />
+                            <button
+                                onClick={handlePasswordSubmit}
+                                className="bg-[var(--mac-accent)] text-white px-6 rounded-xl font-bold hover:opacity-90 transition-opacity"
+                            >
+                                確認
+                            </button>
+                        </div>
+                        {passwordError && (
+                            <p className="text-red-500 text-sm mt-2">パスワードが違います</p>
+                        )}
+                    </div>
+                )}
+
                 {/* Download All Button */}
-                {files.length > 1 && onDownloadAll && (
+                {files.length > 1 && onDownloadAll && !needsPassword && (
                     <button
                         onClick={onDownloadAll}
                         className="mb-8 mac-button flex items-center gap-2 shadow-lg hover:scale-105 transition-transform"
@@ -1581,11 +1630,13 @@ function ReceiverView({ status, files, activeFile, progress, speed, activeStream
 
                             <button
                                 onClick={() => onStartDownload(file)}
-                                disabled={status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
+                                disabled={needsPassword || status === 'connected' || (activeFile !== null && activeFile.id !== file.id)}
                                 className={`w-full mt-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
-                                    ${activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'mac-button'}`}
+                                    ${needsPassword ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : activeFile?.id === file.id ? 'bg-gray-100 text-gray-400' : 'mac-button'}`}
                             >
-                                {activeFile?.id === file.id ? (status === 'connected' ? 'Downloading...' : 'Starting...') : (
+                                {needsPassword ? (
+                                    <><Lock size={16} /> パスワードが必要です</>
+                                ) : activeFile?.id === file.id ? (status === 'connected' ? 'Downloading...' : 'Starting...') : (
                                     <><Download size={16} /> Download</>
                                 )}
                             </button>
