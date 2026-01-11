@@ -283,6 +283,11 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         passwordRef.current = password;
     }, [usePassword, password]);
 
+    const errorRef = useRef<string | null>(null);
+    useEffect(() => {
+        errorRef.current = error;
+    }, [error]);
+
     // --- Helpers ---
 
     const addLog = useCallback((msg: string) => {
@@ -797,6 +802,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         setTimeout(() => {
+            if (errorRef.current === 'password_required') return;
+
             if (connectionsRef.current.every(c => !c.open) && status !== 'waiting_for_save') {
                 addLog("Connection timeout.");
 
@@ -890,6 +897,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     peer.destroy();
                     initPeer(retryCount + 1);
                 } else if (err.type === 'peer-unavailable') {
+                    // Ignore if we are prompting for password
+                    if (errorRef.current === 'password_required') return;
+
                     failedAttemptsRef.current += 1;
                     setInputKey('');
 
