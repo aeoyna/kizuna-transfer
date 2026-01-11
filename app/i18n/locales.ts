@@ -54,7 +54,25 @@ export const translations = {
         unlockRoom: "Unlock Room",
         roomLocked: "Room Locked",
         roomLockedDesc: "No new connections allowed.",
-        connectionRejected: "Connection Rejected: Room is locked."
+        connectionRejected: "Connection Rejected: Room is locked.",
+
+        // New keys
+        dropFilesHere: "Drop Files Here",
+        waitingForConnection: "Waiting for connection...",
+        filesSelected: "Files Selected",
+        totalSize: "Total Size",
+        readyToSend: "Ready to Send",
+        shareCodeGuide: "Share this code with recipient",
+        receiving: "Receiving...",
+        completed: "Completed",
+        downloadAll: "Download All",
+
+        // Password
+        enablePassword: "Enable Password Protection",
+        password: "Password",
+        passwordRequired: "Password Required",
+        enterPassword: "Enter the password shown on sender's screen",
+        invalidPassword: "Invalid Password",
     },
     ja: {
         sendFiles: "ファイルを送る",
@@ -109,7 +127,25 @@ export const translations = {
         unlockRoom: "ロック解除",
         roomLocked: "部屋はロック済み",
         roomLockedDesc: "新規接続を受け付けません。",
-        connectionRejected: "接続拒否: 部屋がロックされています。"
+        connectionRejected: "接続拒否: 部屋がロックされています。",
+
+        // New keys from instruction
+        dropFilesHere: "ファイルをドロップ",
+        waitingForConnection: "相手の接続を待っています...",
+        filesSelected: "ファイルを選択しました",
+        totalSize: "合計サイズ",
+        readyToSend: "送信準備完了",
+        shareCodeGuide: "このコードを相手に伝えてください",
+        receiving: "受信中...",
+        completed: "完了",
+        downloadAll: "すべて保存",
+
+        // Password
+        enablePassword: "パスワードで保護する",
+        password: "パスワード",
+        passwordRequired: "パスワードが必要です",
+        enterPassword: "送信画面に表示されているパスワードを入力",
+        invalidPassword: "パスワードが違います",
     },
     zh: {
         sendFiles: "发送文件",
@@ -164,7 +200,25 @@ export const translations = {
         unlockRoom: "解锁房间",
         roomLocked: "房间已锁定",
         roomLockedDesc: "不再接受新连接。",
-        connectionRejected: "连接拒绝：房间已锁定。"
+        connectionRejected: "连接拒绝：房间已锁定。",
+
+        // New keys from instruction
+        dropFilesHere: "放入文件",
+        waitingForConnection: "等待连接...",
+        filesSelected: "已选择文件",
+        totalSize: "总大小",
+        readyToSend: "准备发送",
+        shareCodeGuide: "请告知对方此代码",
+        receiving: "接收中...",
+        completed: "完成",
+        downloadAll: "全部下载",
+
+        // Password
+        enablePassword: "启用密码保护",
+        password: "密码",
+        passwordRequired: "需要密码",
+        enterPassword: "请输入发送方显示的密码",
+        invalidPassword: "密码错误",
     },
     ko: {
         sendFiles: "파일 보내기",

@@ -256,6 +256,33 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         isLockedRef.current = isLocked;
     }, [isLocked]);
 
+    // Password Protection
+    const [usePassword, setUsePassword] = useState(false);
+    const [password, setPassword] = useState<string | null>(null);
+
+    const generatePassword = () => {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let pass = '';
+        for (let i = 0; i < 8; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        return pass;
+    };
+
+    const togglePassword = () => {
+        if (!usePassword && !password) {
+            setPassword(generatePassword());
+        }
+        setUsePassword(!usePassword);
+    };
+
+    // Refs for Password (safe access in callbacks)
+    const usePasswordRef = useRef(false);
+    const passwordRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        usePasswordRef.current = usePassword;
+        passwordRef.current = password;
+    }, [usePassword, password]);
+
     // --- Helpers ---
 
     const addLog = useCallback((msg: string) => {
@@ -581,6 +608,18 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             addLog(`Received data: ${data.type} from ${remotePeerId}`);
         }
 
+        // Handle Errors (e.g. Password Required)
+        if (data && data.type === 'error') {
+            if (data.message === 'password_required') {
+                addLog('Password required for this connection.');
+                setError('password_required'); // Trigger password modal in UI
+            } else {
+                addLog(`Peer Error: ${data.message}`);
+                setError(data.message);
+            }
+            return; // Don't process further
+        }
+
         // Security: Handshake Check
         if (hostedFilesRef.current.length > 0 && conn) {
             // @ts-ignore
@@ -714,11 +753,11 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         });
     }, [addLog, handleData]);
 
-    const connectToPeer = useCallback((key: string) => {
+    const connectToPeer = useCallback((key: string, password?: string) => {
         if (!peerRef.current) return;
 
-        // Reset old errors
-        setError(null);
+        // Reset old errors only if not handling password request
+        if (error !== 'password_required') setError(null);
 
         if (isCaptchaActive) {
             setError('Please solve the captcha first.');
@@ -735,7 +774,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         for (let i = 0; i < PARALLEL_STREAMS; i++) {
             const conn = peerRef.current.connect(peerId, {
                 reliable: true,
-                serialization: 'binary'
+                serialization: 'binary',
+                metadata: { password } // Send password if provided
             });
 
             newConns.push(conn);
@@ -770,7 +810,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 }, 1000);
             }
         }, 5000);
-    }, [addLog, handleData, isCaptchaActive, status]);
+    }, [addLog, handleData, isCaptchaActive, status, error, t]);
 
     // 5. Init Peer (Refresh/Rotate)
     const initPeer = useCallback(async (retryCount = 0, specificKey?: string) => {
@@ -819,6 +859,19 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     setTimeout(() => conn.send({ type: 'error', message: t('connectionRejected') }), 500);
                     setTimeout(() => conn.close(), 1000);
                     return;
+                }
+
+                // Password Check
+                if (usePasswordRef.current && passwordRef.current) {
+                    // @ts-ignore
+                    const meta = conn.metadata;
+                    if (!meta || meta.password !== passwordRef.current) {
+                        addLog(`Security: Rejected connection from ${conn.peer} (Password verification failed)`);
+                        // Send 'password_required' error code so receiver knows to prompt
+                        setTimeout(() => conn.send({ type: 'error', message: 'password_required' }), 500);
+                        setTimeout(() => conn.close(), 1000);
+                        return;
+                    }
                 }
 
                 if (connectionsRef.current.length >= PARALLEL_STREAMS + 2) {
@@ -979,11 +1032,14 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         }}
                         isLocked={isLocked}
                         onToggleLock={() => setIsLocked(!isLocked)}
+                        usePassword={usePassword}
+                        password={password}
+                        onTogglePassword={togglePassword}
                     />
                 ) : (
                     <InitialView
                         onFileSelect={handleFileSelect}
-                        onJoin={(key: string) => connectToPeer(key)}
+                        onJoin={(key, password) => connectToPeer(key, password)}
                         inputKey={inputKey}
                         setInputKey={setInputKey}
                         error={error}
@@ -1034,7 +1090,7 @@ function LogViewer({ logs }: { logs: string[] }) {
 
 interface InitialViewProps {
     onFileSelect: (files: File[]) => void;
-    onJoin: (key: string) => void;
+    onJoin: (key: string, password?: string) => void;
     inputKey: string;
     setInputKey: (key: string) => void;
     error: string | null;
@@ -1047,6 +1103,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
     const { t, language } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
+    const [passwordInput, setPasswordInput] = useState('');
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -1198,7 +1255,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
 
             {(error || isCaptchaActive) && (
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
+                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100 animate-in fade-in zoom-in duration-300">
                         {isCaptchaActive ? (
                             <div className="space-y-4">
                                 <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
@@ -1220,7 +1277,31 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                                     </button>
                                 </div>
                             </div>
+                        ) : error === 'password_required' ? (
+                            // Password Input Modal
+                            <div className="space-y-4">
+                                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
+                                    <Lock className="w-8 h-8 text-yellow-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-center text-gray-900">{t('passwordRequired')}</h3>
+                                <p className="text-center text-gray-500 text-sm mb-2">{t('enterPassword')}</p>
+                                <input
+                                    type="text"
+                                    className="w-full border-2 border-yellow-200 rounded-xl px-4 py-3 text-center text-2xl font-mono tracking-widest uppercase focus:border-[var(--mac-accent)] focus:ring-0 outline-none transition-colors"
+                                    value={passwordInput}
+                                    onChange={(e) => setPasswordInput(e.target.value)}
+                                    placeholder="********"
+                                    maxLength={8}
+                                />
+                                <button
+                                    onClick={() => onJoin(inputKey, passwordInput)}
+                                    className="w-full bg-[var(--mac-accent)] text-white py-3 rounded-xl font-bold hover:bg-[var(--mac-hover)] transition-transform active:scale-95 shadow-md flex items-center justify-center gap-2"
+                                >
+                                    <Unlock size={18} /> {t('verify')}
+                                </button>
+                            </div>
                         ) : (
+                            // Standard Error
                             <div className="text-center space-y-4">
                                 <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
                                     <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
@@ -1241,6 +1322,7 @@ function InitialView({ onFileSelect, onJoin, inputKey, setInputKey, error, isCap
                 </div>
             )
             }
+
 
             {/* P2P Explanation Section - At Bottom */}
             <div className="w-full max-w-4xl bg-white/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-100 shadow-sm mt-12 mb-8">
@@ -1315,9 +1397,12 @@ interface SenderViewProps {
     onStopPeer: (peerId: string) => void;
     isLocked: boolean;
     onToggleLock: () => void;
+    usePassword: boolean;
+    password: string | null;
+    onTogglePassword: () => void;
 }
 
-function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer, isLocked, onToggleLock }: SenderViewProps) {
+function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderStats, peerDiffs, onStopPeer, isLocked, onToggleLock, usePassword, password, onTogglePassword }: SenderViewProps) {
     const { t } = useLanguage();
     const mainFile = hostedFiles[0];
     const [isSharing, setIsSharing] = useState(false);
@@ -1385,6 +1470,27 @@ function SenderView({ hostedFiles, activeStreams, onSchedule, onAddFile, senderS
                         <h1 className="text-5xl font-bold tracking-wider text-[var(--mac-text)] font-mono">
                             {mainFile.transferKey.slice(0, 3)}-{mainFile.transferKey.slice(3)}
                         </h1>
+
+                        <div className="mt-4 flex flex-col items-center gap-2">
+                            <label className="flex items-center gap-2 cursor-pointer select-none bg-white/50 px-3 py-1.5 rounded-full border border-gray-100 hover:bg-white transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={usePassword}
+                                    onChange={onTogglePassword}
+                                    className="w-4 h-4 rounded border-gray-300 text-[var(--mac-accent)] focus:ring-[var(--mac-accent)]"
+                                />
+                                <span className="text-xs font-bold text-gray-700">{t('enablePassword')}</span>
+                            </label>
+
+                            {usePassword && password && (
+                                <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex flex-col items-center w-full max-w-[200px]">
+                                    <p className="text-[10px] text-yellow-700 font-bold uppercase mb-0.5">{t('password')}</p>
+                                    <div className="text-xl font-mono font-bold text-gray-800 tracking-widest select-all">
+                                        {password}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className={`bg-white p-3 rounded-2xl shadow-lg mb-6 transition-all ${isLocked ? 'opacity-50 grayscale' : ''}`}>
