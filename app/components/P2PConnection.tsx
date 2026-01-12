@@ -206,18 +206,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [hostedFiles, setHostedFiles] = useState<HostedFile[]>([]);
     const [theme, setTheme] = useState<ThemeColors>(DEFAULT_THEME);
 
-    // Fetch User Country
-    useEffect(() => {
-        fetch('https://ipapi.co/json/')
-            .then(res => res.json())
-            .then(data => {
-                const country = data.country_code;
-                if (country && COUNTRY_THEMES[country]) {
-                    setTheme(COUNTRY_THEMES[country]);
-                }
-            })
-            .catch(err => console.error('Failed to detect location for theme:', err));
-    }, []);
+    // Theme detection disabled for production stability (avoiding CORS/rate-limits)
+    // useEffect(() => { ... }, []);
 
     // Multi-file support: Store array of incoming files
     const [incomingFiles, setIncomingFiles] = useState<IncomingFileMeta[]>([]);
