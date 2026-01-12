@@ -799,15 +799,25 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 }
             }
             else if (data.type === 'file_end') {
-                addLog("File transfer finished.");
-                if (incomingDataRef.current?.writable) {
-                    await incomingDataRef.current.writable.close();
-                }
-                incomingDataRef.current = { ...incomingDataRef.current!, isFinished: true };
-                setStatus('waiting_for_save'); // Go back to list
-                setProgress(100);
-                setActiveDownloadFile(null); // Clear active download
-                setTransferSpeed('Finished');
+                addLog("File transfer finished. Closing safely in 500ms...");
+                setTimeout(async () => {
+                    if (incomingDataRef.current?.writable) {
+                        try {
+                            await incomingDataRef.current.writable.close();
+                            console.log("Stream closed safely.");
+                        } catch (e) {
+                            console.warn("Error closing stream:", e);
+                        }
+                    }
+                    if (incomingDataRef.current) {
+                        incomingDataRef.current = { ...incomingDataRef.current, isFinished: true };
+                    }
+                    setStatus('waiting_for_save');
+                    setProgress(100);
+                    setActiveDownloadFile(null);
+                    setTransferSpeed('Finished');
+                    releaseWakeLock();
+                }, 500);
                 setResumeHandle(null); // Clear resume handle
                 await clearTransferState(); // Clear DB
                 releaseWakeLock();
