@@ -1250,25 +1250,25 @@ function InitialView({
                 <LanguageSwitcher />
             </div>
 
-            <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-center gap-12 animate-fade-in-up">
+            <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center md:items-stretch justify-center gap-12 animate-fade-in-up">
 
                 {/* Send Card (The Realistic Postbox) */}
                 {/* Send Card (Glass Card) */}
                 <div
-                    className={`ios-card-glass w-full max-w-sm pt-10 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer relative overflow-hidden ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
+                    className={`ios-card-glass w-full max-w-sm p-8 flex flex-col items-center justify-center gap-6 text-center transition-all duration-500 cursor-pointer relative overflow-hidden ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
                 >
                     {/* Airmail Strip */}
-                    <div className="ios-airmail-strip z-0" />
+                    <div className="ios-airmail-strip z-0 rounded-t-[36px]" />
                     {/* Inner content wrapper */}
                     {/* Inner content wrapper */}
-                    <div className="relative z-20 flex flex-col items-center w-full h-full">
+                    <div className="relative z-20 flex flex-col items-center justify-center w-full h-full">
 
                         {/* Top Icon & Title */}
-                        <div className="mt-6 flex flex-col items-center">
+                        <div className="flex flex-col items-center">
                             {/* Package Icon */}
                             <div className={`w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4 text-[#ff6b6b] transition-transform duration-300 ${isDragging ? 'scale-110 rotate-3' : ''}`}>
                                 <Package size={32} strokeWidth={1.5} />
@@ -1294,7 +1294,7 @@ function InitialView({
 
                         {/* Dropzone */}
                         <div
-                            className={`parcel-dropzone h-40 w-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 z-10
+                            className={`parcel-dropzone h-48 w-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 z-10
                             ${isDragging ? 'scale-[1.02] border-[#ff6b6b] bg-red-50/50' : 'hover:border-gray-400'}`}
                         >
                             <div className={`mb-3 text-[#ff6b6b] opacity-60 transition-transform duration-300 ${isDragging ? 'scale-110 -translate-y-1' : ''}`}>
@@ -1414,50 +1414,51 @@ function InitialView({
                 </div>
             </div >
 
-            {(error || isCaptchaActive) && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
-                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
-                        {isCaptchaActive ? (
-                            <div className="space-y-4">
-                                <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
-                                <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
-                                <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
-                                        value={captchaInput}
-                                        onChange={(e) => setCaptchaInput(e.target.value)}
-                                        placeholder="?"
-                                    />
-                                    <button
-                                        onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
-                                        className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
-                                    >
-                                        {t('verify')}
-                                    </button>
+            {
+                (error || isCaptchaActive) && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6">
+                        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-gray-100">
+                            {isCaptchaActive ? (
+                                <div className="space-y-4">
+                                    <ShieldAlert className="w-12 h-12 text-[var(--theme-primary)] mx-auto" />
+                                    <h3 className="text-xl font-bold text-center">{t('securityCheck')}</h3>
+                                    <p className="text-center text-gray-500">Please solve: {captcha.q} = ?</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            className="flex-1 border rounded-lg px-4 py-2 text-center text-lg"
+                                            value={captchaInput}
+                                            onChange={(e) => setCaptchaInput(e.target.value)}
+                                            placeholder="?"
+                                        />
+                                        <button
+                                            onClick={() => { onCaptchaVerify(captchaInput); setCaptchaInput(''); }}
+                                            className="bg-[var(--theme-primary)] text-white px-6 rounded-lg font-bold hover:bg-[var(--theme-hover)]"
+                                        >
+                                            {t('verify')}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="text-center space-y-4">
-                                <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
-                                    <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
+                            ) : (
+                                <div className="text-center space-y-4">
+                                    <div className="w-16 h-16 bg-[var(--theme-light)] rounded-full flex items-center justify-center mx-auto">
+                                        <ShieldAlert className="w-8 h-8 text-[var(--theme-primary)]" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
+                                    <p className="text-gray-600 font-medium">{error}</p>
+                                    {error !== t('addressNotFound') && (
+                                        <button
+                                            onClick={() => window.location.reload()}
+                                            className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
+                                        >
+                                            {t('retry')}
+                                        </button>
+                                    )}
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-900">Connection Error</h3>
-                                <p className="text-gray-600 font-medium">{error}</p>
-                                {error !== t('addressNotFound') && (
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-transform active:scale-95"
-                                    >
-                                        {t('retry')}
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
-                </div>
-            )
+                )
             }
 
             {/* P2P Explanation Section - At Bottom */}
