@@ -245,8 +245,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [captcha, setCaptcha] = useState({ q: '', a: '' });
     const failedAttemptsRef = useRef(0);
 
-    // Logs
-    const [logs, setLogs] = useState<string[]>([]);
+    // Logs - Production cleanup: State removed
+    // const [logs, setLogs] = useState<string[]>([]);
 
     // Refs
     const peerRef = useRef<any>(null);
@@ -334,8 +334,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         const logMsg = `[${time}] ${translatedMsg}`;
+        // Production: Console log only, no UI state update
         console.log(logMsg);
-        setLogs(prev => [logMsg, ...prev].slice(0, 100));
     }, []);
 
     useEffect(() => {
@@ -1171,7 +1171,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 )}
             </div>
 
-            <LogViewer logs={logs} />
+            {/* LogViewer removed for production */}
+            {/* <LogViewer logs={logs} /> */}
 
         </div>
     );
