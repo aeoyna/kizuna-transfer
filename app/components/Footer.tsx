@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Github, Twitter } from 'lucide-react';
+import { Github } from 'lucide-react';
 
 export default function Footer() {
     return (
@@ -17,9 +17,6 @@ export default function Footer() {
                     <div className="flex gap-4 pt-2">
                         <a href="https://github.com/aeoyna/kizuna-transfer" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-900 transition-colors">
                             <Github size={20} />
-                        </a>
-                        <a href="https://twitter.com/aeoyna" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#1DA1F2] transition-colors">
-                            <Twitter size={20} />
                         </a>
                     </div>
                     <p className="text-xs text-gray-400 pt-8">
@@ -42,7 +39,6 @@ export default function Footer() {
                     <h4 className="font-bold text-gray-900 text-sm">Support</h4>
                     <ul className="space-y-3 text-sm text-gray-600">
                         <li><a href="/faq" className="hover:text-gray-900 transition-colors">FAQ</a></li>
-                        <li><a href="/contact" className="hover:text-gray-900 transition-colors">お問い合わせ</a></li>
                         <li><a href="/security" className="hover:text-gray-900 transition-colors">セキュリティ</a></li>
                         <li><a href="/terms" className="hover:text-gray-900 transition-colors">利用規約</a></li>
                         <li><a href="/status" className="hover:text-gray-900 transition-colors">障害情報</a></li>

@@ -1250,7 +1250,21 @@ function InitialView({
                             </div>
 
                             <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('sendFiles')}</h2>
-                            <p className="text-gray-500 text-sm">Secure P2P File Transfer</p>
+                            <p className="text-gray-500 text-sm mb-4">Secure P2P File Transfer</p>
+
+                            {/* Password Checkbox */}
+                            <div
+                                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer mb-4"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTogglePassword(!isPasswordEnabled);
+                                }}
+                            >
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isPasswordEnabled ? 'bg-[#ff6b6b] border-[#ff6b6b]' : 'border-gray-300'}`}>
+                                    {isPasswordEnabled && <CheckCircle2 size={12} className="text-white" />}
+                                </div>
+                                <span className="text-sm font-medium text-gray-600">{t('requirePassword')}</span>
+                            </div>
                         </div>
 
                         {/* Dropzone */}
@@ -1269,21 +1283,8 @@ function InitialView({
 
                         <div className="h-6"></div> {/* Spacer */}
 
-                        {/* Password Checkbox */}
-                        <div
-                            className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onTogglePassword(!isPasswordEnabled);
-                            }}
-                        >
-                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isPasswordEnabled ? 'bg-[#ff6b6b] border-[#ff6b6b]' : 'border-gray-300'}`}>
-                                {isPasswordEnabled && <CheckCircle2 size={12} className="text-white" />}
-                            </div>
-                            <span className="text-sm font-medium text-gray-600">{t('requirePassword')}</span>
-                        </div>
-
                         <div className="h-4"></div>
+
                     </div>
 
                     <input
