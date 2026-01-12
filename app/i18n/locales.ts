@@ -58,7 +58,9 @@ export const translations = {
         requirePassword: "Require Password",
         password: "Password",
         incorrectPassword: "Incorrect password",
-        enterPassword: "Enter password"
+        enterPassword: "Enter password",
+        doNotCloseTab: "Please do not close the tab during transfer.",
+        cancelConnection: "Cancel Connection"
     },
     ja: {
         sendFiles: "ファイルを送る",
@@ -117,7 +119,9 @@ export const translations = {
         requirePassword: "パスワードを要求する",
         password: "パスワード",
         incorrectPassword: "パスワードが違います",
-        enterPassword: "パスワードを入力してください"
+        enterPassword: "パスワードを入力してください",
+        doNotCloseTab: "転送中タブを閉じないでください。",
+        cancelConnection: "接続を解除して戻る"
     },
     zh: {
         sendFiles: "发送文件",
@@ -176,7 +180,9 @@ export const translations = {
         requirePassword: "需要密码",
         password: "密码",
         incorrectPassword: "密码错误",
-        enterPassword: "请输入密码"
+        enterPassword: "请输入密码",
+        doNotCloseTab: "传输过程中请勿关闭此标签页。",
+        cancelConnection: "取消连接"
     },
     ko: {
         sendFiles: "파일 보내기",
@@ -235,7 +241,9 @@ export const translations = {
         requirePassword: "비밀번호 요구",
         password: "비밀번호",
         incorrectPassword: "비밀번호가 틀렸습니다",
-        enterPassword: "비밀번호를 입력하세요"
+        enterPassword: "비밀번호를 입력하세요",
+        doNotCloseTab: "전송 중에는 탭을 닫지 마세요.",
+        cancelConnection: "연결 취소"
     },
     ain: {
         sendFiles: "カンタミ オマンテ",
@@ -294,6 +302,8 @@ export const translations = {
         requirePassword: "トゥンペ エウ",
         password: "トゥンペ",
         incorrectPassword: "トゥンペ エコポイ",
-        enterPassword: "トゥンペ エウ"
+        enterPassword: "トゥンペ エウ",
+        doNotCloseTab: "カンタミ ル アカ",
+        cancelConnection: "接続を解除 (Cancel)"
     }
 };

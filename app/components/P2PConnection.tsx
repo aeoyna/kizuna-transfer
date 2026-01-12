@@ -289,11 +289,39 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         passwordRef.current = generatedPassword;
     }, [generatedPassword]);
 
+    // --- Tab Close Prevention ---
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            const isSending = senderStats.isTransferring;
+            const isReceiving = status === 'connected' && !!activeDownloadFile;
+
+            if (isSending || isReceiving) {
+                e.preventDefault();
+                e.returnValue = ''; // Standard way to trigger the confirmation dialog
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [senderStats.isTransferring, status, activeDownloadFile]);
+
     // --- Helpers ---
 
     const addLog = useCallback((msg: string) => {
         const time = new Date().toLocaleTimeString();
-        const logMsg = `[${time}] ${msg}`;
+        // Translate common logs to Japanese if they match specific patterns
+        let translatedMsg = msg;
+        if (msg.startsWith('Initializing PeerJS with ID:')) {
+            translatedMsg = msg.replace('Initializing PeerJS with ID:', 'ID:') + ' で PeerJS を初期化しています';
+        } else if (msg.startsWith('PeerJS Open. My ID:')) {
+            translatedMsg = msg.replace('PeerJS Open. My ID:', 'PeerJS オープン。私のID:');
+        } else if (msg.startsWith('Found interrupted transfer:')) {
+            translatedMsg = msg.replace('Found interrupted transfer:', '中断された転送が見つかりました:');
+        } else if (msg.startsWith('Connecting to')) {
+            translatedMsg = msg.replace('Connecting to', '').replace('...', '') + ' に接続しています...';
+        }
+
+        const logMsg = `[${time}] ${translatedMsg}`;
         console.log(logMsg);
         setLogs(prev => [logMsg, ...prev].slice(0, 100));
     }, []);
@@ -539,6 +567,26 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             });
             addLog("Transfer state saved for auto-resume.");
         } catch (e) { console.warn("Failed to save resume state", e); }
+
+        // Security: Check handle permission for resume cases
+        if (fileHandle) {
+            try {
+                // @ts-ignore
+                const permissionMode = { mode: 'readwrite' };
+                // @ts-ignore
+                if ((await fileHandle.queryPermission(permissionMode)) !== 'granted') {
+                    addLog("Requesting file system permission...");
+                    // @ts-ignore
+                    if ((await fileHandle.requestPermission(permissionMode)) !== 'granted') {
+                        addLog("Permission denied.");
+                        setError("File permission denied. Please click download again to authorize.");
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("Permission check failed", err);
+            }
+        }
 
         const writable = await fileHandle!.createWritable({ keepExistingData: true });
 
@@ -957,6 +1005,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     setStatus('waiting_for_save');
                     const key = savedState.peerId.replace(ID_PREFIX, '');
                     setInputKey(key);
+
+                    // Auto-Connect on Resume
+                    addLog(`Reconnecting to sender: ${key}`);
+                    connectToPeer(key);
                 } else if (savedState) {
                     // Stale or invalid state, clear it
                     clearTransferState();
@@ -1047,6 +1099,19 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                                 return;
                             }
                             connectionsRef.current.forEach(c => c.send({ type: 'auth', password: pw }));
+                        }}
+                        onReset={() => {
+                            connectionsRef.current.forEach(c => c.close());
+                            connectionsRef.current = [];
+                            setActiveStreamCount(0);
+                            setIncomingFiles([]);
+                            setActiveDownloadFile(null);
+                            setError(null);
+                            setResumeHandle(null);
+                            clearTransferState();
+                            setStatus('initializing');
+                            setInputKey('');
+                            addLog("Connection cancelled by user.");
                         }}
                         onLog={addLog}
                     />
@@ -1584,7 +1649,12 @@ function SenderView({
                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
                                 <div className="h-full bg-[var(--mac-accent)] transition-all duration-300" style={{ width: `${senderStats.progress}%` }} />
                             </div>
-                            <div className="text-right text-[var(--mac-accent)] font-bold text-sm">{senderStats.speed}</div>
+                            <div className="text-right text-[var(--mac-accent)] font-bold text-sm mb-2">{senderStats.speed}</div>
+                            <div className="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 animate-pulse">
+                                <p className="text-xs text-red-600 font-bold text-center flex items-center justify-center gap-1">
+                                    <ShieldAlert size={14} /> {t('doNotCloseTab')}
+                                </p>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -1609,12 +1679,13 @@ interface ReceiverViewProps {
     isAuthRequired?: boolean;
     authError?: string | null;
     onVerifyPassword?: (password: string) => void;
+    onReset?: () => void;
     onLog?: (msg: string) => void;
 }
 
 function ReceiverView({
     status, files, activeFile, progress, speed, activeStreams, error, onStartDownload, onDownloadAll,
-    countdown, inputKey, isResume, isAuthRequired, authError, onVerifyPassword, onLog
+    countdown, inputKey, isResume, isAuthRequired, authError, onVerifyPassword, onReset, onLog
 }: ReceiverViewProps) {
     const { t } = useLanguage();
     const [passwordInput, setPasswordInput] = useState('');
@@ -1674,7 +1745,14 @@ function ReceiverView({
                         <Loader2 size={32} strokeWidth={1.5} className="animate-spin" />
                     </div>
                     <h2 className="text-xl font-bold text-[var(--mac-text)] mb-2">Connecting...</h2>
-                    <p className="text-[var(--mac-text-secondary)] text-sm italic">Establishing secure P2P link</p>
+                    <p className="text-[var(--mac-text-secondary)] text-sm italic mb-8">Establishing secure P2P link</p>
+
+                    <button
+                        onClick={onReset}
+                        className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-widest"
+                    >
+                        <XCircle size={14} /> {t('cancelConnection')}
+                    </button>
                 </div>
             </div>
         );
@@ -1695,7 +1773,14 @@ function ReceiverView({
                         <Download size={36} className="text-white" />
                     </div>
                     <h2 className="text-3xl font-bold text-[var(--mac-text)] mb-2">{t('receiveFiles')}</h2>
-                    <p className="text-[var(--mac-text-secondary)]">From: <span className="font-mono font-bold">{inputKey.slice(0, 3)}-{inputKey.slice(3)}</span></p>
+                    <p className="text-[var(--mac-text-secondary)] mb-4">From: <span className="font-mono font-bold">{inputKey.slice(0, 3)}-{inputKey.slice(3)}</span></p>
+
+                    <button
+                        onClick={onReset}
+                        className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-widest mx-auto"
+                    >
+                        <XCircle size={14} /> {t('cancelConnection')}
+                    </button>
                 </div>
 
                 {/* Download All Button */}
@@ -1761,9 +1846,14 @@ function ReceiverView({
                         <div className="h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
                             <div className="h-full bg-gradient-to-r from-[var(--mac-accent)] to-blue-500 transition-all duration-200" style={{ width: `${progress}%` }} />
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-sm mb-4">
                             <span className="text-[var(--mac-text-secondary)]">{Math.round(progress)}%</span>
                             <span className="text-[var(--mac-accent)] font-bold">{speed}</span>
+                        </div>
+                        <div className="p-3 bg-red-50 rounded-xl border border-red-100 animate-pulse">
+                            <p className="text-xs text-red-600 font-bold text-center flex items-center justify-center gap-1">
+                                <ShieldAlert size={14} /> {t('doNotCloseTab')}
+                            </p>
                         </div>
                     </div>
                 )}
