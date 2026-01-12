@@ -42,6 +42,7 @@ export default function Footer() {
                     <ul className="space-y-3 text-sm text-gray-600">
                         <li><a href="/faq" className="hover:text-gray-900 transition-colors">FAQ</a></li>
                         <li><a href="/contact" className="hover:text-gray-900 transition-colors">お問い合わせ</a></li>
+                        <li><a href="/security" className="hover:text-gray-900 transition-colors">セキュリティ</a></li>
                         <li><a href="/terms" className="hover:text-gray-900 transition-colors">利用規約</a></li>
                         <li><a href="/status" className="hover:text-gray-900 transition-colors">障害情報</a></li>
                     </ul>
