@@ -23,7 +23,8 @@ export default function Footer() {
                         </a>
                     </div>
                     <p className="text-xs text-gray-400 pt-8">
-                        © 2026 Kizuna Project
+                        © 2026 Kizuna Project<br />
+                        Graphics: <a href="https://twemoji.twitter.com/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors underline decoration-dotted">Twemoji</a> (Copyright 2020 Twitter, Inc and other contributors, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors underline decoration-dotted">CC-BY 4.0</a>)
                     </p>
                 </div>
 
