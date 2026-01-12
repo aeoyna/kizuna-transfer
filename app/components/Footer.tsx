@@ -18,7 +18,7 @@ export default function Footer() {
                         <a href="https://github.com/aeoyna/kizuna-transfer" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-900 transition-colors">
                             <Github size={20} />
                         </a>
-                        <a href="#" className="text-gray-400 hover:text-[#1DA1F2] transition-colors">
+                        <a href="https://twitter.com/aeoyna" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#1DA1F2] transition-colors">
                             <Twitter size={20} />
                         </a>
                     </div>
