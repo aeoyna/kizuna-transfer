@@ -207,7 +207,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     setTheme(COUNTRY_THEMES[country]);
                 }
             } catch (error) {
-                console.warn("位置情報の取得に失敗しました。デフォルトのテーマを使用します:", error);
+                console.log("位置情報が取れなかったので、デフォルト設定を使います", error);
+                // ここでアプリを止めずに、代替の処理を動かす
             }
         };
         fetchLocation();
