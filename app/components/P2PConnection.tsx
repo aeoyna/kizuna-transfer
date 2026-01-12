@@ -1255,7 +1255,7 @@ function InitialView({
                 {/* Send Card (The Realistic Postbox) */}
                 {/* Send Card (Glass Card) */}
                 <div
-                    className={`ios-card-glass w-full max-w-sm pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer relative overflow-hidden ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
+                    className={`ios-card-glass w-full max-w-sm pt-10 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer relative overflow-hidden ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
@@ -1294,7 +1294,7 @@ function InitialView({
 
                         {/* Dropzone */}
                         <div
-                            className={`parcel-dropzone h-48 w-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 z-10
+                            className={`parcel-dropzone h-40 w-full flex flex-col items-center justify-center cursor-pointer transition-all duration-300 z-10
                             ${isDragging ? 'scale-[1.02] border-[#ff6b6b] bg-red-50/50' : 'hover:border-gray-400'}`}
                         >
                             <div className={`mb-3 text-[#ff6b6b] opacity-60 transition-transform duration-300 ${isDragging ? 'scale-110 -translate-y-1' : ''}`}>
@@ -1305,11 +1305,6 @@ function InitialView({
                                 {isDragging ? 'Drop Files Here' : 'Drop Zone'}
                             </span>
                         </div>
-
-                        <div className="h-6"></div> {/* Spacer */}
-
-                        <div className="h-4"></div>
-
                     </div>
 
                     <input
