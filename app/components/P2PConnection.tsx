@@ -124,60 +124,6 @@ const DEFAULT_THEME: ThemeColors = {
     subtle: '#fecaca'
 };
 
-const COUNTRY_THEMES: Record<string, ThemeColors> = {
-    'US': { // USA - Blue
-        primary: '#0033A0',
-        dark: '#001E60',
-        hover: '#00267F',
-        light: '#dbeafe', // blue-100
-        lighter: '#eff6ff', // blue-50
-        subtle: '#bfdbfe' // blue-200
-    },
-    'JP': DEFAULT_THEME, // Japan - Red
-    'KR': { // Korea - Red (slightly different standard, but sticking to default for now or custom)
-        primary: '#C60C30',
-        dark: '#8a0821',
-        hover: '#a30a27',
-        light: '#ffe4e6',
-        lighter: '#fff1f2',
-        subtle: '#fecdd3'
-    },
-    'CN': { // China - Green
-        primary: '#006400',
-        dark: '#004000',
-        hover: '#005000',
-        light: '#dcfce7', // green-100
-        lighter: '#f0fdf4', // green-50
-        subtle: '#bbf7d0' // green-200
-    },
-    'TW': DEFAULT_THEME, // Taiwan - Red
-    'TH': DEFAULT_THEME, // Thailand - Red
-    'VN': { // Vietnam - Yellow/Gold (using Dark Goldenrod for visibility on white)
-        primary: '#DAA520',
-        dark: '#B8860B',
-        hover: '#CD950C',
-        light: '#fef9c3', // yellow-100
-        lighter: '#fefce8', // yellow-50
-        subtle: '#fde047' // yellow-200ish
-    },
-    'ID': { // Indonesia - Orange
-        primary: '#FF4500',
-        dark: '#CC3700',
-        hover: '#E63E00',
-        light: '#ffedd5', // orange-100
-        lighter: '#fff7ed', // orange-50
-        subtle: '#fed7aa' // orange-200
-    },
-    'MY': DEFAULT_THEME, // Malaysia - Red
-    'KP': { // North Korea - Blue
-        primary: '#024FA2',
-        dark: '#003366',
-        hover: '#003F82',
-        light: '#dbeafe',
-        lighter: '#eff6ff',
-        subtle: '#bfdbfe'
-    }
-};
 
 // Helper to sanitize file names
 const sanitizeFileName = (name: string): string => {
@@ -206,18 +152,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [hostedFiles, setHostedFiles] = useState<HostedFile[]>([]);
     const [theme, setTheme] = useState<ThemeColors>(DEFAULT_THEME);
 
-    // Fetch User Country (via API Proxy to avoid CORS)
-    useEffect(() => {
-        fetch('/api/location')
-            .then(res => res.json())
-            .then(data => {
-                const country = data.country_code;
-                if (country && COUNTRY_THEMES[country]) {
-                    setTheme(COUNTRY_THEMES[country]);
-                }
-            })
-            .catch(err => console.error('Failed to detect location for theme:', err));
-    }, []);
 
     // Multi-file support: Store array of incoming files
     const [incomingFiles, setIncomingFiles] = useState<IncomingFileMeta[]>([]);
