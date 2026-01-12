@@ -1219,8 +1219,9 @@ function InitialView({
         <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[var(--mac-bg)] text-[var(--mac-text)]">
             {/* Background Ambience */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '8s' }} />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '10s' }} />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-30 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-400 rounded-full blur-[120px] opacity-30 animate-blob" style={{ animationDelay: '2s' }} />
+                <div className="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-purple-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '4s' }} />
             </div>
 
             {/* Top Bar */}
@@ -1232,7 +1233,7 @@ function InitialView({
 
                 {/* Send Card (The Realistic Postbox) */}
                 <div
-                    className={`ios-postbox w-full max-w-sm aspect-[4/5] pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-300 cursor-pointer ${isDragging ? 'scale-105 ring-4 ring-yellow-400' : 'hover:translate-y-[-4px] hover:shadow-2xl'}`}
+                    className={`ios-postbox mac-glass w-full max-w-sm aspect-[4/5] pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
@@ -1418,7 +1419,7 @@ function InitialView({
             }
 
             {/* P2P Explanation Section - At Bottom */}
-            <div className="w-full max-w-4xl bg-white/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-100 shadow-sm mt-12 mb-8">
+            <div className="w-full max-w-4xl mac-glass p-8 mt-12 mb-8 relative z-10 border-white/40">
                 <h4 className="font-bold text-lg mb-4 flex items-center gap-2 justify-center">
                     <Share2 size={20} className="text-[var(--mac-accent)]" />
                     {t('p2pTitle')}
@@ -1428,7 +1429,7 @@ function InitialView({
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                    <div className="bg-white/40 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-white/50">
                         <h5 className="font-bold text-xs uppercase tracking-wider text-[var(--mac-accent)] mb-4 flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-[var(--mac-accent)]" />
                             {t('p2pMerits')}
@@ -1454,7 +1455,7 @@ function InitialView({
                             </li>
                         </ul>
                     </div>
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                    <div className="bg-white/40 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-white/50">
                         <h5 className="font-bold text-xs uppercase tracking-wider text-orange-500 mb-4 flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-orange-500" />
                             {t('p2pDemerits')}
@@ -1528,8 +1529,9 @@ function SenderView({
         <div className="min-h-screen bg-[var(--mac-bg)] text-[var(--mac-text)] p-6 flex flex-col items-center relative overflow-hidden">
             {/* Background Ambience */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-green-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '8s' }} />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '10s' }} />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-green-400 rounded-full blur-[120px] opacity-30 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-30 animate-blob" style={{ animationDelay: '2s' }} />
+                <div className="absolute top-[40%] right-[10%] w-[40%] h-[40%] bg-emerald-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '4s' }} />
             </div>
 
             {/* Header */}
@@ -1763,8 +1765,9 @@ function ReceiverView({
         <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--mac-bg)] p-6 relative overflow-hidden">
             {/* Background Ambience */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-purple-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '8s' }} />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-100 rounded-full blur-3xl opacity-40 animate-pulse" style={{ animationDuration: '10s' }} />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-400 rounded-full blur-[120px] opacity-30 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-30 animate-blob" style={{ animationDelay: '2s' }} />
+                <div className="absolute top-[30%] right-[30%] w-[35%] h-[35%] bg-sky-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '4s' }} />
             </div>
 
             <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">

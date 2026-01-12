@@ -11,9 +11,11 @@
   --mac-accent-hover: #0077ed;
 
   /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg: rgba(255, 255, 255, 0.4);
   --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+
+  /* Apple-like System Colors */
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -45,10 +47,11 @@ body {
 
 .mac-glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: 16px;
+  border-radius: 20px;
 }
 
 .mac-button {
@@ -133,6 +136,28 @@ body {
 
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite alternate;
 }
 
 /* iOS Postbox Utilities - Modern Glass Style */
@@ -222,12 +247,14 @@ body {
 
 
 .ios-card-glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.04);
-  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 4px 24px -1px rgba(0, 0, 0, 0.03),
+    0 16px 40px -4px rgba(0, 0, 0, 0.06);
+  border-radius: 36px;
 }
 
 /* iOS Envelope & Letter Styling */
