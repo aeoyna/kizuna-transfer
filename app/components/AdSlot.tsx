@@ -20,6 +20,9 @@ export default function AdSlot({ variant = 'banner', className = '' }: AdSlotPro
                     <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('sponsored')}</div>
                     <p className="text-sm text-gray-500 font-medium">{t('yourAdHere')}</p>
                 </div>
+                <button className="text-xs text-[#d40000] font-bold hover:underline flex items-center gap-1">
+                    {t('contactUs')} <ExternalLink size={10} />
+                </button>
             </div>
         );
     }

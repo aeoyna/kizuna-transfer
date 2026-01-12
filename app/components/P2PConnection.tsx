@@ -124,16 +124,59 @@ const DEFAULT_THEME: ThemeColors = {
     subtle: '#fecaca'
 };
 
-
-// Helper to sanitize file names
-const sanitizeFileName = (name: string): string => {
-    // Remove control characters and non-printable chars
-    // Also prevent directory traversal (good practice)
-    return name
-        .replace(/[\x00-\x1f\x80-\x9f]/g, "") // Remove control chars
-        .replace(/^\.+/, "") // Remove leading dots
-        .replace(/[<>:"/\\|?*]/g, "_") // Replace invalid FS chars
-        .slice(0, 255); // Limit length
+const COUNTRY_THEMES: Record<string, ThemeColors> = {
+    'US': { // USA - Blue
+        primary: '#0033A0',
+        dark: '#001E60',
+        hover: '#00267F',
+        light: '#dbeafe', // blue-100
+        lighter: '#eff6ff', // blue-50
+        subtle: '#bfdbfe' // blue-200
+    },
+    'JP': DEFAULT_THEME, // Japan - Red
+    'KR': { // Korea - Red (slightly different standard, but sticking to default for now or custom)
+        primary: '#C60C30',
+        dark: '#8a0821',
+        hover: '#a30a27',
+        light: '#ffe4e6',
+        lighter: '#fff1f2',
+        subtle: '#fecdd3'
+    },
+    'CN': { // China - Green
+        primary: '#006400',
+        dark: '#004000',
+        hover: '#005000',
+        light: '#dcfce7', // green-100
+        lighter: '#f0fdf4', // green-50
+        subtle: '#bbf7d0' // green-200
+    },
+    'TW': DEFAULT_THEME, // Taiwan - Red
+    'TH': DEFAULT_THEME, // Thailand - Red
+    'VN': { // Vietnam - Yellow/Gold (using Dark Goldenrod for visibility on white)
+        primary: '#DAA520',
+        dark: '#B8860B',
+        hover: '#CD950C',
+        light: '#fef9c3', // yellow-100
+        lighter: '#fefce8', // yellow-50
+        subtle: '#fde047' // yellow-200ish
+    },
+    'ID': { // Indonesia - Orange
+        primary: '#FF4500',
+        dark: '#CC3700',
+        hover: '#E63E00',
+        light: '#ffedd5', // orange-100
+        lighter: '#fff7ed', // orange-50
+        subtle: '#fed7aa' // orange-200
+    },
+    'MY': DEFAULT_THEME, // Malaysia - Red
+    'KP': { // North Korea - Blue
+        primary: '#024FA2',
+        dark: '#003366',
+        hover: '#003F82',
+        light: '#dbeafe',
+        lighter: '#eff6ff',
+        subtle: '#bfdbfe'
+    }
 };
 
 // --- Main Component ---
@@ -152,6 +195,23 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [hostedFiles, setHostedFiles] = useState<HostedFile[]>([]);
     const [theme, setTheme] = useState<ThemeColors>(DEFAULT_THEME);
 
+    // Fetch User Country
+    useEffect(() => {
+        const fetchLocation = async () => {
+            try {
+                const response = await fetch('https://ipapi.co/json/');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                const country = data.country_code;
+                if (country && COUNTRY_THEMES[country]) {
+                    setTheme(COUNTRY_THEMES[country]);
+                }
+            } catch (error) {
+                console.warn("位置情報の取得に失敗しました。デフォルトのテーマを使用します:", error);
+            }
+        };
+        fetchLocation();
+    }, []);
 
     // Multi-file support: Store array of incoming files
     const [incomingFiles, setIncomingFiles] = useState<IncomingFileMeta[]>([]);
@@ -163,7 +223,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [activeStreamCount, setActiveStreamCount] = useState(0);
     const [countdown, setCountdown] = useState<string>('');
     const [inputKey, setInputKey] = useState<string>('');
-    const [lastConnectionAttempt, setLastConnectionAttempt] = useState<number>(0);
 
     // Resume State
     const [resumeHandle, setResumeHandle] = useState<any>(null);
@@ -179,8 +238,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [captcha, setCaptcha] = useState({ q: '', a: '' });
     const failedAttemptsRef = useRef(0);
 
-    // Logs - Production cleanup: State removed
-    // const [logs, setLogs] = useState<string[]>([]);
+    // Logs
+    const [logs, setLogs] = useState<string[]>([]);
 
     // Refs
     const peerRef = useRef<any>(null);
@@ -268,8 +327,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         const logMsg = `[${time}] ${translatedMsg}`;
-        // Production: Console log only, no UI state update
         console.log(logMsg);
+        setLogs(prev => [logMsg, ...prev].slice(0, 100));
     }, []);
 
     useEffect(() => {
@@ -673,7 +732,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             if (data.type === 'metadata_list') {
                 // Multi-file support: Receive list of files
                 const files: IncomingFileMeta[] = data.files.map((f: any) => ({
-                    name: sanitizeFileName(f.fileName),
+                    name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
                     size: f.fileSize,
                     peerId: remotePeerId,
                     id: f.id
@@ -719,7 +778,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 }
 
                 try {
-                    if (state.writable && !state.writable.locked) {
+                    // Guard: Check if writable exists and stream is not finished/closing
+                    if (state.writable && !state.writable.locked && !state.isFinished) {
                         await state.writable.write({ type: 'write', position: data.index * CHUNK_SIZE, data: data.data });
                         state.receivedChunks++;
 
@@ -735,7 +795,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         }
                     }
                 } catch (e) {
-                    console.error("Write error:", e);
+                    console.warn("Write error (ignored likely due to race condition):", e);
                 }
             }
             else if (data.type === 'file_end') {
@@ -1084,15 +1144,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 ) : (
                     <InitialView
                         onFileSelect={handleFileSelect}
-                        onJoin={(key: string) => {
-                            const now = Date.now();
-                            if (now - lastConnectionAttempt < 1000) {
-                                addLog('Connection attempt throttled. Please wait.');
-                                return;
-                            }
-                            setLastConnectionAttempt(now);
-                            connectToPeer(key);
-                        }}
+                        onJoin={(key: string) => connectToPeer(key)}
                         inputKey={inputKey}
                         setInputKey={setInputKey}
                         error={error}
@@ -1105,8 +1157,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 )}
             </div>
 
-            {/* LogViewer removed for production */}
-            {/* <LogViewer logs={logs} /> */}
+            <LogViewer logs={logs} />
 
         </div>
     );
