@@ -1143,7 +1143,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                         onJoin={(key: string) => {
                             const now = Date.now();
                             if (now - lastConnectionAttempt < 1000) {
-                                addLog('Connection attempt throttled. Please wait.', 'system');
+                                addLog('Connection attempt throttled. Please wait.');
                                 return;
                             }
                             setLastConnectionAttempt(now);
