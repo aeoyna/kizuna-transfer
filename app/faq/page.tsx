@@ -33,9 +33,15 @@ export default function FAQPage() {
     ];
 
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-900 selection:bg-red-100">
+        <div className="min-h-screen bg-[var(--mac-bg)] text-gray-900 selection:bg-red-100 relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '2s' }} />
+            </div>
+
             {/* Navigation */}
-            <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <nav className="sticky top-0 z-50 bg-white/40 backdrop-blur-xl border-b border-white/40">
                 <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
@@ -45,7 +51,7 @@ export default function FAQPage() {
                 </div>
             </nav>
 
-            <main className="max-w-3xl mx-auto px-6 py-20">
+            <main className="max-w-3xl mx-auto px-6 py-20 relative z-10">
                 <header className="mb-16">
                     <div className="w-12 h-12 bg-white shadow-sm rounded-xl flex items-center justify-center text-blue-500 mb-6">
                         <HelpCircle size={24} />
@@ -56,7 +62,7 @@ export default function FAQPage() {
 
                 <div className="space-y-4">
                     {faqs.map((faq, i) => (
-                        <details key={i} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all hover:border-gray-200">
+                        <details key={i} className="group bg-white/30 backdrop-blur-xl rounded-2xl border border-white/40 overflow-hidden transition-all hover:bg-white/40 shadow-sm">
                             <summary className="flex items-center justify-between p-6 cursor-pointer list-none">
                                 <h3 className="font-bold pr-4 leading-tight">{faq.q}</h3>
                                 <ChevronDown className="text-gray-300 group-open:rotate-180 transition-transform flex-shrink-0" size={20} />

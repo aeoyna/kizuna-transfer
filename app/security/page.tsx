@@ -6,9 +6,15 @@ import Link from 'next/link';
 
 export default function SecurityPage() {
     return (
-        <div className="min-h-screen bg-white text-gray-900 selection:bg-blue-100 italic-none">
+        <div className="min-h-screen bg-[var(--mac-bg)] text-gray-900 selection:bg-blue-100 italic-none relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '2s' }} />
+            </div>
+
             {/* Navigation */}
-            <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <nav className="sticky top-0 z-50 bg-white/40 backdrop-blur-xl border-b border-white/40">
                 <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
@@ -32,14 +38,14 @@ export default function SecurityPage() {
 
                 {/* Core Security Pillars */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-24">
-                    <div className="p-10 rounded-[40px] bg-gray-50 border border-gray-100 italic-none">
+                    <div className="p-10 rounded-[40px] bg-white/30 backdrop-blur-xl border border-white/50 italic-none shadow-lg">
                         <Lock className="text-blue-500 mb-6" size={32} />
                         <h2 className="text-2xl font-bold mb-4">E2E 暗号化</h2>
                         <p className="text-gray-600 leading-relaxed font-medium">
                             「エンドツーエンド暗号化」を採用。送信者のブラウザで暗号化されたデータは、受信者のブラウザでしか復号できません。途中のインターネット経路で誰かに中身を盗み見られるリスクはありません。
                         </p>
                     </div>
-                    <div className="p-10 rounded-[40px] bg-blue-600 text-white italic-none shadow-xl shadow-blue-200">
+                    <div className="p-10 rounded-[40px] bg-blue-600/80 backdrop-blur-xl text-white italic-none shadow-xl shadow-blue-400/20 border border-blue-400/30">
                         <Globe className="text-blue-200 mb-6" size={32} />
                         <h2 className="text-2xl font-bold mb-4 text-white">P2P 直接転送</h2>
                         <p className="text-blue-100 leading-relaxed font-medium">
@@ -51,9 +57,9 @@ export default function SecurityPage() {
                 {/* Detailed Comparison Table */}
                 <section className="mb-24 italic-none">
                     <h2 className="text-2xl font-bold mb-8 text-center">既存のサービスとの違い</h2>
-                    <div className="overflow-hidden rounded-3xl border border-gray-100 shadow-sm">
+                    <div className="overflow-hidden rounded-3xl border border-white/50 shadow-lg bg-white/40 backdrop-blur-xl">
                         <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50">
+                            <thead className="bg-white/20">
                                 <tr>
                                     <th className="p-6 text-sm font-bold text-gray-400 uppercase tracking-widest">特徴</th>
                                     <th className="p-6 text-sm font-bold text-gray-900 italic-none">他社転送サービス</th>
@@ -85,21 +91,21 @@ export default function SecurityPage() {
                 <section className="space-y-6 italic-none">
                     <h2 className="text-2xl font-bold mb-6">さらなる保護機能</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="flex gap-4 p-6 rounded-2xl border border-gray-100">
+                        <div className="flex gap-4 p-6 rounded-2xl border border-white/50 bg-white/30 backdrop-blur-md">
                             <Zap className="text-orange-500 flex-shrink-0" size={24} />
                             <div>
                                 <h3 className="font-bold text-sm mb-1">パスワード設定</h3>
                                 <p className="text-xs text-gray-500 leading-relaxed italic-none">受信時に合言葉を要求し、誤送信や不正アクセスを防ぎます。</p>
                             </div>
                         </div>
-                        <div className="flex gap-4 p-6 rounded-2xl border border-gray-100">
+                        <div className="flex gap-4 p-6 rounded-2xl border border-white/50 bg-white/30 backdrop-blur-md">
                             <Server className="text-purple-500 flex-shrink-0" size={24} />
                             <div>
                                 <h3 className="font-bold text-sm mb-1">部屋のロック</h3>
                                 <p className="text-xs text-gray-500 leading-relaxed italic-none">接続確立後、新しい第三者の参加を完全に遮断します。</p>
                             </div>
                         </div>
-                        <div className="flex gap-4 p-6 rounded-2xl border border-gray-100">
+                        <div className="flex gap-4 p-6 rounded-2xl border border-white/50 bg-white/30 backdrop-blur-md">
                             <UserCheck className="text-green-500 flex-shrink-0" size={24} />
                             <div>
                                 <h3 className="font-bold text-sm mb-1">匿名利用</h3>

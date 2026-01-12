@@ -6,9 +6,15 @@ import Link from 'next/link';
 
 export default function TermsPage() {
     return (
-        <div className="min-h-screen bg-white text-gray-900 selection:bg-red-100 italic-none">
+        <div className="min-h-screen bg-[var(--mac-bg)] text-gray-900 selection:bg-red-100 italic-none relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-pink-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '2s' }} />
+            </div>
+
             {/* Navigation */}
-            <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <nav className="sticky top-0 z-50 bg-white/40 backdrop-blur-xl border-b border-white/40">
                 <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
@@ -18,7 +24,7 @@ export default function TermsPage() {
                 </div>
             </nav>
 
-            <main className="max-w-3xl mx-auto px-6 py-20">
+            <main className="max-w-3xl mx-auto px-6 py-20 relative z-10">
                 <header className="mb-20">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold mb-4">
                         <ShieldCheck size={14} />
@@ -87,8 +93,8 @@ export default function TermsPage() {
                     </section>
 
                     <section className="pt-12 border-t border-gray-100">
-                        <div className="p-6 bg-gray-50 rounded-2xl flex items-center gap-4">
-                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-blue-500 flex-shrink-0">
+                        <div className="p-6 bg-white/30 backdrop-blur-xl rounded-2xl flex items-center gap-4 border border-white/50 shadow-sm">
+                            <div className="w-10 h-10 bg-white/60 backdrop-blur-md rounded-xl shadow-sm flex items-center justify-center text-blue-500 flex-shrink-0 border border-white/40">
                                 <ShieldCheck size={20} />
                             </div>
                             <p className="text-sm text-gray-500 font-medium">

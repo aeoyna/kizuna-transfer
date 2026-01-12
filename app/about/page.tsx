@@ -6,9 +6,15 @@ import Link from 'next/link';
 
 export default function AboutPage() {
     return (
-        <div className="min-h-screen bg-white text-gray-900 selection:bg-red-100 italic-none">
+        <div className="min-h-screen bg-[var(--mac-bg)] text-gray-900 selection:bg-red-100 italic-none relative overflow-hidden">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '0s' }} />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-pink-400 rounded-full blur-[120px] opacity-20 animate-blob" style={{ animationDelay: '2s' }} />
+            </div>
+
             {/* Header / Navigation */}
-            <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <nav className="sticky top-0 z-50 bg-white/40 backdrop-blur-xl border-b border-white/40">
                 <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
                         <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
@@ -18,7 +24,7 @@ export default function AboutPage() {
                 </div>
             </nav>
 
-            <main className="max-w-3xl mx-auto px-6 py-20">
+            <main className="max-w-3xl mx-auto px-6 py-20 relative z-10">
                 {/* Hero Section */}
                 <header className="mb-20">
                     <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6">
@@ -45,7 +51,7 @@ export default function AboutPage() {
                             <p>
                                 ある日、YouTubeを眺めていると、あるクリエイターがこんなことを言っていました。
                             </p>
-                            <div className="bg-gray-50 border-l-4 border-red-500 p-6 rounded-r-2xl my-8 italic-none">
+                            <div className="bg-white/40 backdrop-blur-md border-l-4 border-red-500 p-6 rounded-r-2xl my-8 italic-none shadow-sm">
                                 <p className="font-bold text-gray-900 mb-0">
                                     「128GBのデータを送るなら、ネットワーク経由で転送するより、直接会ってメモリを手渡す方が速いんだ！」
                                 </p>
@@ -69,11 +75,11 @@ export default function AboutPage() {
                         </div>
                     </section>
 
-                    <section className="bg-gray-50 rounded-3xl p-8 md:p-12 border border-gray-100">
+                    <section className="bg-white/30 backdrop-blur-xl rounded-3xl p-8 md:p-12 border border-white/50 shadow-lg">
                         <h2 className="text-2xl font-bold mb-8 text-gray-900">私たちが大切にする3つのこと</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             <div className="space-y-4">
-                                <div className="w-10 h-10 bg-white shadow-sm rounded-xl flex items-center justify-center text-blue-500">
+                                <div className="w-10 h-10 bg-white/60 backdrop-blur-md shadow-sm rounded-xl flex items-center justify-center text-blue-500 border border-white/40">
                                     <Shield size={20} />
                                 </div>
                                 <h3 className="font-bold">プライバシー</h3>
@@ -82,7 +88,7 @@ export default function AboutPage() {
                                 </p>
                             </div>
                             <div className="space-y-4">
-                                <div className="w-10 h-10 bg-white shadow-sm rounded-xl flex items-center justify-center text-orange-500">
+                                <div className="w-10 h-10 bg-white/60 backdrop-blur-md shadow-sm rounded-xl flex items-center justify-center text-orange-500 border border-white/40">
                                     <Zap size={20} />
                                 </div>
                                 <h3 className="font-bold">究極のシンプル</h3>
@@ -91,7 +97,7 @@ export default function AboutPage() {
                                 </p>
                             </div>
                             <div className="space-y-4">
-                                <div className="w-10 h-10 bg-white shadow-sm rounded-xl flex items-center justify-center text-red-500">
+                                <div className="w-10 h-10 bg-white/60 backdrop-blur-md shadow-sm rounded-xl flex items-center justify-center text-red-500 border border-white/40">
                                     <Heart size={20} />
                                 </div>
                                 <h3 className="font-bold">人との繋がり</h3>
