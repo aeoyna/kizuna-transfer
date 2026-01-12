@@ -298,14 +298,14 @@ body {
 }
 
 .ios-airmail-strip {
-  height: 4px;
+  height: 6px;
   background: repeating-linear-gradient(-45deg,
-      #ff3b30,
-      #ff3b30 10px,
+      #ff6b6b,
+      #ff6b6b 10px,
       #ffffff 10px,
       #ffffff 20px,
-      #007aff 20px,
-      #007aff 30px,
+      #4ecdc4 20px,
+      #4ecdc4 30px,
       #ffffff 30px,
       #ffffff 40px);
   position: absolute;

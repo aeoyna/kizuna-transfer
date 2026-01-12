@@ -1254,15 +1254,15 @@ function InitialView({
 
                 {/* Send Card (The Realistic Postbox) */}
                 {/* Send Card (Glass Card) */}
-                {/* Send Card (Glass Card) */}
                 <div
-                    className={`ios-card-glass w-full max-w-sm pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer overflow-hidden ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
+                    className={`ios-card-glass w-full max-w-sm pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer relative overflow-hidden ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
                 >
-                    <div className="ios-airmail-strip" />
+                    {/* Airmail Strip */}
+                    <div className="ios-airmail-strip z-0" />
                     {/* Inner content wrapper */}
                     {/* Inner content wrapper */}
                     <div className="relative z-20 flex flex-col items-center w-full h-full">
