@@ -179,6 +179,17 @@ const COUNTRY_THEMES: Record<string, ThemeColors> = {
     }
 };
 
+// Helper to sanitize file names
+const sanitizeFileName = (name: string): string => {
+    // Remove control characters and non-printable chars
+    // Also prevent directory traversal (good practice)
+    return name
+        .replace(/[\x00-\x1f\x80-\x9f]/g, "") // Remove control chars
+        .replace(/^\.+/, "") // Remove leading dots
+        .replace(/[<>:"/\\|?*]/g, "_") // Replace invalid FS chars
+        .slice(0, 255); // Limit length
+};
+
 // --- Main Component ---
 export default function P2PConnection({ initialKey }: { initialKey?: string }) {
     return (
@@ -218,6 +229,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [activeStreamCount, setActiveStreamCount] = useState(0);
     const [countdown, setCountdown] = useState<string>('');
     const [inputKey, setInputKey] = useState<string>('');
+    const [lastConnectionAttempt, setLastConnectionAttempt] = useState<number>(0);
 
     // Resume State
     const [resumeHandle, setResumeHandle] = useState<any>(null);
@@ -727,7 +739,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             if (data.type === 'metadata_list') {
                 // Multi-file support: Receive list of files
                 const files: IncomingFileMeta[] = data.files.map((f: any) => ({
-                    name: f.fileName.replace(/[^a-zA-Z0-9.\-_ \(\)\u0080-\uFFFF]/g, "_").slice(0, 200),
+                    name: sanitizeFileName(f.fileName),
                     size: f.fileSize,
                     peerId: remotePeerId,
                     id: f.id
@@ -1138,7 +1150,15 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 ) : (
                     <InitialView
                         onFileSelect={handleFileSelect}
-                        onJoin={(key: string) => connectToPeer(key)}
+                        onJoin={(key: string) => {
+                            const now = Date.now();
+                            if (now - lastConnectionAttempt < 1000) {
+                                addLog('Connection attempt throttled. Please wait.', 'system');
+                                return;
+                            }
+                            setLastConnectionAttempt(now);
+                            connectToPeer(key);
+                        }}
                         inputKey={inputKey}
                         setInputKey={setInputKey}
                         error={error}
