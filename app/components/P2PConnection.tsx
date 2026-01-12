@@ -1205,6 +1205,7 @@ function InitialView({
     const { t, language } = useLanguage();
     const [isDragging, setIsDragging] = useState(false);
     const [captchaInput, setCaptchaInput] = useState('');
+    const hiddenInputRef = useRef<HTMLInputElement>(null);
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -1298,35 +1299,32 @@ function InitialView({
                 </div>
 
                 {/* Receive Card (Glass Card) */}
-                <div className="ios-card-glass w-full max-w-sm p-8 flex flex-col items-center gap-6 relative overflow-hidden">
-                    <div className="text-center">
-                        <Download size={40} className="mx-auto text-[var(--mac-accent)] mb-4" />
-                        <h2 className="text-2xl font-bold text-[var(--mac-text)] mb-2">{t('receiveFiles')}</h2>
-                        <p className="text-[var(--mac-text-secondary)] text-sm">{t('enterCode')}</p>
-                    </div>
-
+                <div
+                    className="ios-card-glass w-full max-w-sm p-8 flex flex-col items-center gap-6 cursor-pointer relative"
+                    onClick={() => hiddenInputRef.current?.focus()}
+                >
                     <input
+                        ref={hiddenInputRef}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        maxLength={6}
+                        className="absolute opacity-0 -z-10 h-0 w-0"
                         value={inputKey}
                         onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
                             setInputKey(val);
                             if (val.length === 6) onJoin(val);
                         }}
-                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                        autoFocus={false}
-                        id="numeric-input"
                     />
+                    <div className="text-center">
+                        <Download size={40} className="mx-auto text-[var(--mac-accent)] mb-4" />
+                        <h2 className="text-2xl font-bold text-[var(--mac-text)] mb-2">{t('receiveFiles')}</h2>
+                        <p className="text-[var(--mac-text-secondary)] text-sm">{t('enterCode')}</p>
+                    </div>
 
                     <div className="w-full space-y-6">
                         {/* Postal Code Display */}
-                        <div
-                            className="flex items-center justify-center gap-2 cursor-text"
-                            onClick={() => document.getElementById('numeric-input')?.focus()}
-                        >
+                        <div className="flex items-center justify-center gap-2">
                             <div className="flex gap-1">
                                 {[0, 1, 2].map((i) => (
                                     <div
@@ -1355,7 +1353,8 @@ function InitialView({
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                                 <button
                                     key={n}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.stopPropagation();
                                         if (inputKey.length < 6) {
                                             const newVal = inputKey + n;
                                             setInputKey(newVal);
@@ -1367,9 +1366,15 @@ function InitialView({
                                     {n}
                                 </button>
                             ))}
-                            <button onClick={() => setInputKey('')} className="mac-button h-12 rounded-lg font-bold text-xs">CLR</button>
                             <button
-                                onClick={() => {
+                                onClick={(e) => { e.stopPropagation(); setInputKey(''); }}
+                                className="mac-button h-12 rounded-lg font-bold text-xs"
+                            >
+                                CLR
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                     if (inputKey.length < 6) {
                                         const newVal = inputKey + '0';
                                         setInputKey(newVal);
@@ -1381,7 +1386,7 @@ function InitialView({
                                 0
                             </button>
                             <button
-                                onClick={() => setInputKey(inputKey.slice(0, -1))}
+                                onClick={(e) => { e.stopPropagation(); setInputKey(inputKey.slice(0, -1)); }}
                                 className="mac-button-secondary h-12 rounded-lg font-bold flex items-center justify-center"
                             >
                                 <ArrowRight className="rotate-180" size={16} />
