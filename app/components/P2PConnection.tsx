@@ -1214,6 +1214,26 @@ function InitialView({
         if (files.length > 0) onFileSelect(files);
     };
 
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // Ignore if captcha or error modal is active
+            if (isCaptchaActive || error) return;
+
+            // Only proceed if no other input is focused
+            const activeElement = document.activeElement;
+            const isInputFocused = activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
+
+            if (!isInputFocused) {
+                if (/^[0-9]$/.test(e.key) || e.key === 'Backspace') {
+                    hiddenInputRef.current?.focus();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [isCaptchaActive, error]);
+
 
 
     return (
@@ -1233,8 +1253,9 @@ function InitialView({
             <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-center gap-12 animate-fade-in-up">
 
                 {/* Send Card (The Realistic Postbox) */}
+                {/* Send Card (Glass Card) */}
                 <div
-                    className={`ios-postbox mac-glass w-full max-w-sm aspect-[4/5] pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
+                    className={`ios-card-glass w-full max-w-sm aspect-[4/5] pt-12 pb-8 px-8 flex flex-col items-center text-center transition-all duration-500 cursor-pointer ${isDragging ? 'scale-105 ring-4 ring-red-400/50' : 'hover:translate-y-[-8px] hover:shadow-2xl'}`}
                     onClick={() => document.getElementById('file-input')?.click()}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
