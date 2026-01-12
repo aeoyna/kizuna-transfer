@@ -32,7 +32,7 @@ export default function Footer() {
                     <h4 className="font-bold text-gray-900 text-sm">Kizuna</h4>
                     <ul className="space-y-3 text-sm text-gray-600">
                         <li><a href="/" className="hover:text-gray-900 transition-colors">ホーム</a></li>
-                        <li><a href="#" className="hover:text-gray-900 transition-colors">創作秘話</a></li>
+                        <li><a href="/about" className="hover:text-gray-900 transition-colors">創作秘話</a></li>
                     </ul>
                 </div>
 
@@ -40,10 +40,10 @@ export default function Footer() {
                 <div className="space-y-4">
                     <h4 className="font-bold text-gray-900 text-sm">Support</h4>
                     <ul className="space-y-3 text-sm text-gray-600">
-                        <li><a href="#" className="hover:text-gray-900 transition-colors">FAQ</a></li>
-                        <li><a href="#" className="hover:text-gray-900 transition-colors">お問い合わせ</a></li>
-                        <li><a href="#" className="hover:text-gray-900 transition-colors">利用規約</a></li>
-                        <li><a href="#" className="hover:text-gray-900 transition-colors">障害情報</a></li>
+                        <li><a href="/faq" className="hover:text-gray-900 transition-colors">FAQ</a></li>
+                        <li><a href="/contact" className="hover:text-gray-900 transition-colors">お問い合わせ</a></li>
+                        <li><a href="/terms" className="hover:text-gray-900 transition-colors">利用規約</a></li>
+                        <li><a href="/status" className="hover:text-gray-900 transition-colors">障害情報</a></li>
                     </ul>
                 </div>
             </div>
