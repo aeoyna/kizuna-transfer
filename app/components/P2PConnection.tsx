@@ -957,7 +957,8 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     return;
                 }
 
-                if (connectionsRef.current.length >= PARALLEL_STREAMS + 2) {
+                // Allow multiple users (e.g., 20 users * 5 streams = 100 connections)
+                if (connectionsRef.current.length >= PARALLEL_STREAMS * 20) {
                     addLog(`Security: Rejected connection from ${conn.peer} (Limit reached)`);
                     recordFailure();
                     conn.close();
