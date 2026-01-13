@@ -239,8 +239,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     const [captcha, setCaptcha] = useState({ q: '', a: '' });
     const failedAttemptsRef = useRef(0);
 
-    // Logs
-    const [logs, setLogs] = useState<string[]>([]);
 
     // Refs
     const peerRef = useRef<any>(null);
@@ -329,7 +327,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
 
         const logMsg = `[${time}] ${translatedMsg}`;
         console.log(logMsg);
-        setLogs(prev => [logMsg, ...prev].slice(0, 100));
     }, []);
 
     useEffect(() => {
@@ -1168,7 +1165,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 )}
             </div>
 
-            <LogViewer logs={logs} />
+
 
         </div>
     );
@@ -1176,31 +1173,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
 
 // --- Sub Components ---
 
-function LogViewer({ logs }: { logs: string[] }) {
-    const [isOpen, setIsOpen] = useState(false);
-    return (
-        <div className={`fixed bottom-0 left-0 w-full bg-black/90 text-green-400 font-mono text-xs transition-all duration-300 z-50 border-t border-white/10 ${isOpen ? 'h-48' : 'h-8'}`}>
-            <div
-                className="h-8 bg-white/5 flex items-center justify-between px-4 cursor-pointer hover:bg-white/10"
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                <div className="flex items-center gap-2">
-                    <Terminal size={14} />
-                    <span>System Logs</span>
-                    <span className="text-gray-500 text-[10px]">v2f904d0</span>
-                </div>
-                <span>{isOpen ? '▼' : '▲'}</span>
-            </div>
-            {isOpen && (
-                <div className="h-40 overflow-y-auto p-4 space-y-1">
-                    {logs.map((log, i) => (
-                        <div key={i} className="whitespace-pre-wrap break-all">{log}</div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
 
 interface InitialViewProps {
     onFileSelect: (files: File[]) => void;
