@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "Kizuna Transfer",
   description: "Simple, secure P2P file transfer.",
   referrer: 'no-referrer',
+  other: {
+    google: "notranslate",
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ja" className="notranslate" translate="no">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
