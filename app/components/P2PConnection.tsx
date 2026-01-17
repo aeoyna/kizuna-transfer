@@ -900,9 +900,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         }
 
         setTimeout(() => {
-            const hasAnyOpen = newConns.some(c => c.open);
-            if (!hasAnyOpen && statusRef.current === 'connecting') {
-                addLog("Connection timeout.");
+            // Timeout if still strictly 'connecting' (Handshake not finished)
+            if (statusRef.current === 'connecting') {
+                addLog("Connection timeout (Handshake stall).");
+                newConns.forEach(c => c.close());
                 setError(t('addressNotFound'));
                 setInputKey('');
                 setTimeout(() => {
