@@ -13,7 +13,7 @@ import { LanguageProvider, useLanguage } from '../i18n/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
 // --- Constants ---
-const CHUNK_SIZE = 64 * 1024; // 64KB Optimized for Speed
+const CHUNK_SIZE = 256 * 1024; // 256KB Optimized for Speed
 const PARALLEL_STREAMS = 5; // Use multiple streams
 const MAX_BUFFERED_AMOUNT = 16 * 1024 * 1024; // 16MB limit
 const BUFFER_THRESHOLD = 64 * 1024; // 64KB threshold
@@ -48,7 +48,7 @@ interface TransferState {
     receivedChunks: number;
     startTime: number;
     fileHandle?: FileSystemFileHandle;
-    writable?: FileSystemWritableFileStream;
+    worker?: Worker;
     chunks?: ArrayBuffer[];
     scheduledTime?: number;
     isFinished?: boolean;
@@ -591,7 +591,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             }
         }
 
-        const writable = await fileHandle!.createWritable({ keepExistingData: true });
+        // Writable creation moved to worker
 
         // Check existing size for resume
         const fileData = await fileHandle!.getFile();
@@ -602,7 +602,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             startChunkIndex = Math.floor(currentSize / CHUNK_SIZE);
             addLog(`Resuming from chunk ${startChunkIndex} (${currentSize} bytes)`);
             // We append, so we seek to end
-            await writable.seek(currentSize);
+            startChunkIndex = Math.floor(currentSize / CHUNK_SIZE);
+            addLog(`Resuming from chunk ${startChunkIndex} (${currentSize} bytes)`);
+            // Worker handles seek via init message
         }
 
         incomingDataRef.current = {
@@ -612,9 +614,24 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             receivedChunks: startChunkIndex,
             startTime: Date.now(),
             fileHandle: fileHandle!,
-            writable: writable,
             chunks: [],
-            fileId: fileMeta.id
+            fileId: fileMeta.id,
+            worker: new Worker('/transfer-worker.js')
+        };
+
+        // Initialize Worker
+        incomingDataRef.current.worker!.postMessage({
+            type: 'init',
+            data: fileHandle,
+            offset: currentSize,
+            options: { keepExistingData: true }
+        });
+
+        incomingDataRef.current.worker!.onmessage = (e) => {
+            if (e.data.type === 'error') {
+                console.error('Worker Error:', e.data.error);
+                setError(`Write Error: ${e.data.error}`);
+            }
         };
         setActiveDownloadFile(fileMeta);
         setStatus('connected');
@@ -776,9 +793,14 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 }
 
                 try {
-                    // Guard: Check if writable exists and stream is not finished/closing
-                    if (state.writable && !state.writable.locked && !state.isFinished) {
-                        await state.writable.write({ type: 'write', position: data.index * CHUNK_SIZE, data: data.data });
+                    // Guard: Check if worker exists and stream is not finished/closing
+                    if (state.worker && !state.isFinished) {
+                        state.worker.postMessage({
+                            type: 'write',
+                            data: data.data,
+                            offset: data.index * CHUNK_SIZE // Optional verification, worker appends
+                        }, [data.data]); // Transferable
+
                         state.receivedChunks++;
 
                         if (state.receivedChunks % 20 === 0) {
@@ -798,15 +820,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             }
             else if (data.type === 'file_end') {
                 addLog("File transfer finished. Closing safely in 500ms...");
-                setTimeout(async () => {
-                    if (incomingDataRef.current?.writable) {
-                        try {
-                            await incomingDataRef.current.writable.close();
-                            console.log("Stream closed safely.");
-                        } catch (e) {
-                            console.warn("Error closing stream:", e);
-                        }
-                    }
+                const finalizeTransfer = () => {
                     if (incomingDataRef.current) {
                         incomingDataRef.current = { ...incomingDataRef.current, isFinished: true };
                     }
@@ -815,7 +829,23 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     setActiveDownloadFile(null);
                     setTransferSpeed('Finished');
                     releaseWakeLock();
-                }, 500);
+                };
+
+                if (incomingDataRef.current?.worker) {
+                    const worker = incomingDataRef.current.worker;
+                    worker.onmessage = async (e) => {
+                        if (e.data.type === 'complete') {
+                            console.log("Worker finished writing.");
+                            finalizeTransfer();
+                            worker.terminate();
+                        } else if (e.data.type === 'error') {
+                            console.error("Worker Error on close:", e.data.error);
+                        }
+                    };
+                    worker.postMessage({ type: 'close' });
+                } else {
+                    finalizeTransfer();
+                }
                 setResumeHandle(null); // Clear resume handle
                 await clearTransferState(); // Clear DB
                 releaseWakeLock();
