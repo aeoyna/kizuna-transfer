@@ -13,7 +13,7 @@ import { LanguageProvider, useLanguage } from '../i18n/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
 // --- Constants ---
-const CHUNK_SIZE = 256 * 1024; // 256KB Optimized for Speed
+const CHUNK_SIZE = 64 * 1024; // 64KB Optimized for Speed
 const PARALLEL_STREAMS = 5; // Use multiple streams
 const MAX_BUFFERED_AMOUNT = 16 * 1024 * 1024; // 16MB limit
 const BUFFER_THRESHOLD = 64 * 1024; // 64KB threshold
@@ -48,7 +48,7 @@ interface TransferState {
     receivedChunks: number;
     startTime: number;
     fileHandle?: FileSystemFileHandle;
-    worker?: Worker;
+    writable?: FileSystemWritableFileStream;
     chunks?: ArrayBuffer[];
     scheduledTime?: number;
     isFinished?: boolean;
@@ -591,7 +591,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             }
         }
 
-        // Writable creation moved to worker
+        const writable = await fileHandle!.createWritable({ keepExistingData: true });
 
         // Check existing size for resume
         const fileData = await fileHandle!.getFile();
@@ -602,9 +602,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             startChunkIndex = Math.floor(currentSize / CHUNK_SIZE);
             addLog(`Resuming from chunk ${startChunkIndex} (${currentSize} bytes)`);
             // We append, so we seek to end
-            startChunkIndex = Math.floor(currentSize / CHUNK_SIZE);
-            addLog(`Resuming from chunk ${startChunkIndex} (${currentSize} bytes)`);
-            // Worker handles seek via init message
+            await writable.seek(currentSize);
         }
 
         incomingDataRef.current = {
@@ -614,24 +612,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             receivedChunks: startChunkIndex,
             startTime: Date.now(),
             fileHandle: fileHandle!,
+            writable: writable,
             chunks: [],
-            fileId: fileMeta.id,
-            worker: new Worker('/transfer-worker.js')
-        };
-
-        // Initialize Worker
-        incomingDataRef.current.worker!.postMessage({
-            type: 'init',
-            data: fileHandle,
-            offset: currentSize,
-            options: { keepExistingData: true }
-        });
-
-        incomingDataRef.current.worker!.onmessage = (e) => {
-            if (e.data.type === 'error') {
-                console.error('Worker Error:', e.data.error);
-                setError(`Write Error: ${e.data.error}`);
-            }
+            fileId: fileMeta.id
         };
         setActiveDownloadFile(fileMeta);
         setStatus('connected');
@@ -793,14 +776,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 }
 
                 try {
-                    // Guard: Check if worker exists and stream is not finished/closing
-                    if (state.worker && !state.isFinished) {
-                        state.worker.postMessage({
-                            type: 'write',
-                            data: data.data,
-                            offset: data.index * CHUNK_SIZE // Optional verification, worker appends
-                        }, [data.data]); // Transferable
-
+                    // Guard: Check if writable exists and stream is not finished/closing
+                    if (state.writable && !state.writable.locked && !state.isFinished) {
+                        await state.writable.write({ type: 'write', position: data.index * CHUNK_SIZE, data: data.data });
                         state.receivedChunks++;
 
                         if (state.receivedChunks % 20 === 0) {
@@ -820,7 +798,15 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
             }
             else if (data.type === 'file_end') {
                 addLog("File transfer finished. Closing safely in 500ms...");
-                const finalizeTransfer = () => {
+                setTimeout(async () => {
+                    if (incomingDataRef.current?.writable) {
+                        try {
+                            await incomingDataRef.current.writable.close();
+                            console.log("Stream closed safely.");
+                        } catch (e) {
+                            console.warn("Error closing stream:", e);
+                        }
+                    }
                     if (incomingDataRef.current) {
                         incomingDataRef.current = { ...incomingDataRef.current, isFinished: true };
                     }
@@ -829,23 +815,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                     setActiveDownloadFile(null);
                     setTransferSpeed('Finished');
                     releaseWakeLock();
-                };
-
-                if (incomingDataRef.current?.worker) {
-                    const worker = incomingDataRef.current.worker;
-                    worker.onmessage = async (e) => {
-                        if (e.data.type === 'complete') {
-                            console.log("Worker finished writing.");
-                            finalizeTransfer();
-                            worker.terminate();
-                        } else if (e.data.type === 'error') {
-                            console.error("Worker Error on close:", e.data.error);
-                        }
-                    };
-                    worker.postMessage({ type: 'close' });
-                } else {
-                    finalizeTransfer();
-                }
+                }, 500);
                 setResumeHandle(null); // Clear resume handle
                 await clearTransferState(); // Clear DB
                 releaseWakeLock();
@@ -998,16 +968,6 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 setupConnection(conn);
             });
 
-            peer.on('disconnected', () => {
-                addLog("Connection to PeerJS server lost. Reconnecting...");
-                // Workaround: reconnect might fail if socket is dead, so we wait briefly
-                setTimeout(() => {
-                    if (peer && !peer.destroyed) {
-                        peer.reconnect();
-                    }
-                }, 1000);
-            });
-
             peer.on('error', (err: any) => {
                 addLog(`PeerJS Error: ${err.type}`);
                 if (err.type === 'unavailable-id') {
@@ -1016,14 +976,16 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 } else if (err.type === 'peer-unavailable') {
                     failedAttemptsRef.current += 1;
                     setInputKey('');
+
+                    // --- CUSTOM USER ERROR: Address not found ---
+                    // --- CUSTOM USER ERROR: Address not found ---
                     setError(t('addressNotFound'));
                     setTimeout(() => setError(null), 1000);
-                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'webrtc') {
-                    setError("Network error. Retrying connection...");
-                    // Retry init after delay
-                    setTimeout(() => initPeer(retryCount + 1, specificKey), 3000);
-                } else {
-                    console.error("Unknown PeerJS Error", err);
+
+                    // Optional: Don't hard reload, just let error show
+                    // window.location.href = '/'; 
+                } else if (err.type === 'network') {
+                    setError("Network error. Retrying...");
                 }
             });
         } catch (e: any) {
