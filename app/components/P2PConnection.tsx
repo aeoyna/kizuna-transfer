@@ -873,6 +873,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
         setStatus('connecting');
 
         const newConns: DataConnection[] = [];
+        connectionsRef.current = []; // Reset current connections
         let connectedCount = 0;
 
         for (let i = 0; i < PARALLEL_STREAMS; i++) {
@@ -887,12 +888,9 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 connectedCount++;
                 addLog(`Stream ${i + 1}/${PARALLEL_STREAMS} open`);
 
-                if (connectedCount === PARALLEL_STREAMS) {
-                    connectionsRef.current = newConns;
-                    addLog("Streams connected. Sending handshake...");
-                    newConns.forEach(c => c.send({ type: 'handshake', version: PROTOCOL_VERSION }));
-                    // Wait for auth or handshake_ok from sender
-                }
+                // CRITICAL FIX: Add connection immediately, don't wait for all
+                connectionsRef.current.push(conn);
+                conn.send({ type: 'handshake', version: PROTOCOL_VERSION });
             });
 
             conn.on('data', (data: any) => handleData(data, conn.peer, conn));
