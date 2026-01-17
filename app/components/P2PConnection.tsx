@@ -998,6 +998,16 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 setupConnection(conn);
             });
 
+            peer.on('disconnected', () => {
+                addLog("Connection to PeerJS server lost. Reconnecting...");
+                // Workaround: reconnect might fail if socket is dead, so we wait briefly
+                setTimeout(() => {
+                    if (peer && !peer.destroyed) {
+                        peer.reconnect();
+                    }
+                }, 1000);
+            });
+
             peer.on('error', (err: any) => {
                 addLog(`PeerJS Error: ${err.type}`);
                 if (err.type === 'unavailable-id') {
@@ -1006,16 +1016,14 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
                 } else if (err.type === 'peer-unavailable') {
                     failedAttemptsRef.current += 1;
                     setInputKey('');
-
-                    // --- CUSTOM USER ERROR: Address not found ---
-                    // --- CUSTOM USER ERROR: Address not found ---
                     setError(t('addressNotFound'));
                     setTimeout(() => setError(null), 1000);
-
-                    // Optional: Don't hard reload, just let error show
-                    // window.location.href = '/'; 
-                } else if (err.type === 'network') {
-                    setError("Network error. Retrying...");
+                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'webrtc') {
+                    setError("Network error. Retrying connection...");
+                    // Retry init after delay
+                    setTimeout(() => initPeer(retryCount + 1, specificKey), 3000);
+                } else {
+                    console.error("Unknown PeerJS Error", err);
                 }
             });
         } catch (e: any) {
