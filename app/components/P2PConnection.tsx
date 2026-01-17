@@ -255,6 +255,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     // Connection Lock
     const [isLocked, setIsLocked] = useState(false);
     const isLockedRef = useRef(false); // Ref for immediate access in callbacks
+    const statusRef = useRef(status); // Ref for status tracking
 
     // Password Protection
     const [isPasswordEnabled, setIsPasswordEnabled] = useState(false);
@@ -279,6 +280,10 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
     useEffect(() => {
         isLockedRef.current = isLocked;
     }, [isLocked]);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
     useEffect(() => {
         passwordEnabledRef.current = isPasswordEnabled;
@@ -896,7 +901,7 @@ function P2PConnectionContent({ initialKey }: { initialKey?: string }) {
 
         setTimeout(() => {
             const hasAnyOpen = newConns.some(c => c.open);
-            if (!hasAnyOpen && status === 'connecting') {
+            if (!hasAnyOpen && statusRef.current === 'connecting') {
                 addLog("Connection timeout.");
                 setError(t('addressNotFound'));
                 setInputKey('');
