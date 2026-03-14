@@ -9,7 +9,10 @@ export default function Footer() {
             <div className="max-w-4xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
                 {/* Brand Column */}
                 <div className="space-y-4 md:col-span-2">
-                    <h3 className="text-xl font-bold text-gray-900">Kizuna</h3>
+                    <div className="flex items-center gap-1.5 text-gray-900">
+                        <img src="/images/logo.png" alt="Kizuna Logo" className="h-8 w-auto object-contain flex-shrink-0" />
+                        <h3 className="text-xl font-bold text-gray-900">Kizuna</h3>
+                    </div>
                     <p className="text-sm text-gray-500 leading-relaxed">
                         シンプルで高速なP2Pファイル転送ツール。<br />
                         Made with <span className="text-red-500">❤️</span> by Open Source Community.
