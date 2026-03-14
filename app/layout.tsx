@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   description: "Simple, secure P2P file transfer.",
   referrer: 'no-referrer',
   icons: {
-    icon: '/icon.png',
-    apple: '/icon.png',
+    icon: '/favicon.ico',
+    apple: '/favicon.ico',
   },
   other: {
     google: "notranslate",
