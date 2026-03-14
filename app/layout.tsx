@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "Kizuna Transfer",
   description: "Simple, secure P2P file transfer.",
   referrer: 'no-referrer',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
   other: {
     google: "notranslate",
   },
